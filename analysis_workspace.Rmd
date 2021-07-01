@@ -187,17 +187,17 @@ Corrs generally higher for 13C than 18O could be because of trend
 rowMeans(tab, na.rm=TRUE)
 terr.pal <- terrain.colors(10)
 ggplot(data=raw, aes(x=year, y=o18corr, group=as.factor(Tree_ID))) +
-  geom_line(aes(color=soil_depth))+
-  geom_point(aes(color=soil_depth))+
-  scale_color_gradient(low="blue", high="red")
+  geom_line(aes(color=as.factor(Tree_ID)))+
+  geom_point(aes(color=as.factor(Tree_ID)))+
+  scale_color_brewer(palette="Spectral")
 ```
 
 
 ```{r}
 ggplot(data=raw, aes(x=year, y=c13corr, group=as.factor(Tree_ID))) +
-  geom_line(aes(color=canopy_cover))+
-  geom_point(aes(color=canopy_cover))+
-  scale_color_gradient(low="blue", high="red")
+  geom_line(aes(color=as.factor(Tree_ID)))+
+  geom_point(aes(color=as.factor(Tree_ID)))+
+  scale_color_brewer(palette="Spectral")
 ```
 
 
@@ -400,7 +400,7 @@ test_summary <- test_summary[,-3]
 
 
 ```{r}
-dcc(test_summary, gnip_treeclim, .range(-2:12))
+dcc(test_summary, gnip_treeclim, .range(-4:12))
 ```
 
 I THINK:
@@ -582,7 +582,9 @@ cor.test(compare_prysm$mean, newprysm_output$prysm)
 ```
 
 ```{r}
+compare_prysm$year <- rownames(compare_prysm)
 prysm_combine <- merge(compare_prysm, newprysm_output, by="year")
+prysm_combine$year <- as.numeric(prysm_combine$year)
 ```
 
 
@@ -591,7 +593,8 @@ Make line plot for prysm
 ```{r}
 ggplot(prysm_combine, aes(x=year)) + 
   geom_line(aes(y = mean), color = "darkred") + 
-  geom_line(aes(y = prysm), color="steelblue", linetype="twodash") 
+  geom_line(aes(y = prysm), color="steelblue", linetype="twodash") +
+  theme(legend.position="bottom")
 ```
 
 
@@ -627,9 +630,14 @@ dec_prysm <- subset(prysm_full, month == 12)
 cor.test(annual_mean_o18$mean, dec_prysm$d18o)
 ```
 
+```{r}
+annual_mean_o18$year <- rownames(annual_mean_o18)
+```
+
 
 ```{r}
-temp_prysm <- merge(annual_mean_o18, aug_prysm, by="year")
+temp_prysm <- merge(annual_mean_o18, jan_prysm, by="year")
+temp_prysm$year <- as.numeric(temp_prysm$year)
 ggplot(temp_prysm, aes(x=year)) + 
   geom_line(aes(y = mean), color = "darkred") + 
   geom_line(aes(y = d18o), color="steelblue", linetype="twodash") 
@@ -655,6 +663,7 @@ cor.test(annual_mean_o18$mean, gs_summary$d18o)
 
 ```{r}
 temp_prysm_gs <- merge(annual_mean_o18, gs_summary, by="year")
+temp_prysm_gs$year <- as.numeric(temp_prysm_gs$year)
 ggplot(temp_prysm_gs, aes(x=year)) + 
   geom_line(aes(y = mean), color = "darkred") + 
   geom_line(aes(y = d18o), color="steelblue", linetype="twodash") 
@@ -684,13 +693,13 @@ sep - 604(negative), 617(negative)
 Plotting:
 
 ```{r}
-tab_prysm$year <- rownames(tab_prysm)
+tab_prysm$year <- as.numeric(rownames(tab_prysm))
 tab_prysm_comb <- merge(tab_prysm[1:53,], newprysm_output, by="year") 
 ```
 
 ```{r}
 ggplot(tab_prysm_comb, aes(x=year)) + 
-  geom_line(aes(y = X603), color = "darkred") + 
+  geom_line(aes(y = X605), color = "darkred") + 
   geom_line(aes(y = prysm), color="steelblue", linetype="twodash")
 ```
 
