@@ -1,0 +1,871 @@
+---
+title: "d18o_analysis"
+author: "Zack Grzywacz"
+date: "June 16, 2021"
+output: html_document
+---
+
+
+```{r}
+library(lubridate)
+library(lattice)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(rasterVis)
+library(seas)
+library(s2dverification)
+library(reshape2)
+library(dplyr)
+library(Hmisc)
+library(ggplot2)
+library(viridis)
+library(ggExtra)
+library(grid)
+library(pheatmap)
+library(treeclim)
+library(raster)
+library(dplR)
+```
+
+
+** Reading in data **
+
+```{r}
+raw <- read.csv("raw_isotopes.csv")
+```
+
+```{r}
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+```
+
+```{r}
+raw$year <- substrRight(raw$sample_ID, 4)
+raw$year <- strtoi(raw$year)
+```
+
+```{r}
+prysm <- read.csv("prysm_output.csv")
+```
+
+```{r}
+prysm
+```
+
+
+```{r}
+annual_summary <- raw %>% group_by(year) %>% summarise(mean = mean(o18corr, na.rm = TRUE))
+```
+
+
+```{r}
+annual_summary
+```
+
+
+```{r}
+tab <- read.csv("tabulated_18o.csv")
+rownames(tab) <- tab[,1]
+tab[,1] <- NULL
+```
+
+```{r}
+tab2 <- read.csv("tabulated_13c.csv")
+rownames(tab2) <- tab2[,1]
+tab2[,1] <- NULL
+```
+
+
+
+** Ring width detrending then correlations: **
+
+```{r}
+master <- read.rwl("MRD6_master.rwl")
+```
+
+```{r}
+detrend.series(master$MRD606A, method="Spline")
+```
+
+```{r}
+detrends <- apply(master, MARGIN = 2, detrend.series, method="Spline")
+```
+
+```{r}
+detrend_df <- as.data.frame(detrends)
+```
+
+
+```{r}
+ids <- read.ids(detrend_df, stc=c(4,2,1))
+```
+
+```{r}
+treemeans <- treeMean(detrend_df, ids, na.rm=FALSE)
+```
+
+```{r}
+ring_means <- treemeans[653:711,]
+```
+
+```{r}
+pheatmap(as.matrix(ring_means), scale="none", cluster_rows = FALSE, cluster_cols = FALSE)
+```
+
+
+```{r}
+cor.test(ring_means[['3']], tab2[['X603']])
+```
+
+Corrs are negative. Only some are highly correlated between 18o and ring width.
+Carbon corrs are also negative, more are significant
+
+
+** Comparing & Correlating 18O and 13C series between trees **
+
+```{r}
+pheatmap(as.matrix(tab), scale="none", cluster_rows = FALSE, cluster_cols = FALSE)
+```
+
+```{r}
+pheatmap(as.matrix(tab2), scale="none", cluster_rows = FALSE, cluster_cols = FALSE)
+```
+
+Oxygen correlation matrix:
+
+```{r}
+cor(tab, use = "complete.obs")
+```
+603 - 619, 612, 605
+619 - 603, 605, 612
+612 - 619, 603
+
+605 - 619, 604, 603 ---------------------Link between groups maybe?
+
+604 - 607, 609, 605
+607 - 604, 611
+609 - 604
+611 - 607
+
+606 - 617**
+617 - 606**
+
+
+
+
+
+Carbon correlation matrix:
+
+```{r}
+cor(tab2, use = "complete.obs")
+```
+603 - 619, 605, 612, 617
+619 - 603, 605, 612, 617
+605 - 619, 603
+612 - 619, 603
+
+617 - 607, 611, 606, 619, 603  -----------617 Links these two groups
+
+607 - 617, 611, 606
+606 - 607, 617, 604
+611 - 617, 607
+
+604 - 609, 606  -----------------These correlate with each other but negative with most others
+609 - 604
+
+Corrs generally higher for 13C than 18O could be because of trend
+
+
+
+
+
+** Comparing to soil depth and canopy cover **
+
+
+```{r}
+rowMeans(tab, na.rm=TRUE)
+terr.pal <- terrain.colors(10)
+ggplot(data=raw, aes(x=year, y=o18corr, group=as.factor(Tree_ID))) +
+  geom_line(aes(color=soil_depth))+
+  geom_point(aes(color=soil_depth))+
+  scale_color_gradient(low="blue", high="red")
+```
+
+
+```{r}
+ggplot(data=raw, aes(x=year, y=c13corr, group=as.factor(Tree_ID))) +
+  geom_line(aes(color=canopy_cover))+
+  geom_point(aes(color=canopy_cover))+
+  scale_color_gradient(low="blue", high="red")
+```
+
+
+
+```{r}
+o18_means <- apply(tab, MARGIN = 2, mean, na.rm=TRUE)
+c13_means <- apply(tab2, MARGIN=2, mean, na.rm=TRUE)
+```
+
+```{r}
+soildepths <- c(277.5,237.5,591.25,507.5,443.75,372.5,365,335,256.25,356.25)
+canopycovers <- c(83.5,76,79.25,83.25,86.25,34,73.25,80.75,81.25,84.25)
+```
+
+
+
+```{r}
+plot(o18_means, soildepths)
+```
+
+```{r}
+cor.test(o18_means, soildepths)
+```
+
+
+** Compare to GNIP **
+
+```{r}
+gnip <- read.csv("CG_GNIP.csv")
+gnip$Date <- parse_date_time(gnip$Date, "mdy")
+```
+
+```{r}
+gnip$month <- month(gnip$Date)
+gnip$year <- year(gnip$Date)
+```
+
+```{r}
+for (i in c(1:288)){
+if (gnip$month[i] < 9){
+  gnip$seas.year[i] = (gnip$year[i] - 1)
+}
+else{
+  gnip$seas.year[i] = gnip$year[i]
+}
+}
+```
+
+
+```{r}
+seas_annual_gnip <- gnip %>% group_by(seas.year) %>% summarise(mean = mean(O18, na.rm = TRUE))
+seas_monthly_gnip <- gnip %>% group_by(month) %>% summarise(mean = mean(O18, na.rm = TRUE))
+```
+
+```{r}
+compare_to_gnip <- tab[19:43,]
+```
+
+```{r}
+cor.test(seas_annual_gnip[['mean']], compare_to_gnip[['X605']])
+```
+ 606 - p value 0.004875. cor is 0.63
+ 
+ probably irrelevant since only 5 years overlap - 611 p value 0.003535. cor is -0.979
+ 
+ cor is around ~0.3ish, p-value is 0.1 to 0.2ish - 604, 605, 607, 617
+
+```{r}
+plot(seas_annual_gnip[['mean']], compare_to_gnip[['X606']])
+```
+
+
+```{r}
+DJF_gnip <- subset(gnip, month == 12 | month == 1 | month == 2)
+MAM_gnip <- subset(gnip, month == 3 | month == 4 | month == 5)
+JJA_gnip <- subset(gnip, month == 6 | month == 7 | month == 8)
+SON_gnip <- subset(gnip, month == 9 | month == 10 | month == 11)
+```
+
+```{r}
+DJF_annual_gnip <- DJF_gnip %>% group_by(seas.year) %>% summarise(mean = mean(O18, na.rm = TRUE))
+MAM_annual_gnip <- MAM_gnip %>% group_by(seas.year) %>% summarise(mean = mean(O18, na.rm = TRUE))
+JJA_annual_gnip <- JJA_gnip %>% group_by(seas.year) %>% summarise(mean = mean(O18, na.rm = TRUE))
+SON_annual_gnip <- SON_gnip %>% group_by(seas.year) %>% summarise(mean = mean(O18, na.rm = TRUE))
+de<-data.frame(2002, NA)
+names(de)<-c("seas.year","mean")
+df<-data.frame(1978, NA)
+names(df)<-c("seas.year","mean")
+MAM_annual_gnip <- rbind(MAM_annual_gnip, de)
+JJA_annual_gnip <- rbind(JJA_annual_gnip, de)
+SON_annual_gnip <- rbind(df, SON_annual_gnip)
+```
+
+
+
+```{r}
+cor.test(JJA_annual_gnip[['mean']], compare_to_gnip[['X603']])
+```
+
+Notables for DJF: 606, 607, 619
+MAM: 606, 612
+JJA: 604, 605, 606, 607, 612, 617
+SON: 609, negative with 619 very odd
+
+
+609 is very poor correlation with everything except SON
+
+
+```{r}
+mon_gnip <- subset(gnip, month == 8)
+mon_annual_gnip <- mon_gnip %>% group_by(seas.year) %>% summarise(mean = mean(O18, na.rm = TRUE))
+```
+
+```{r}
+de<-data.frame(2002, NA)
+names(de)<-c("seas.year","mean")
+mon_annual_gnip <- rbind(mon_annual_gnip, de)
+```
+
+
+```{r}
+cor.test(mon_annual_gnip[['mean']], compare_to_gnip[['X619']])
+```
+
+
+Next yr SON: Not worth looking at, but here's the code for it if you're interested:
+
+```{r}
+SON_gnip$new_seas_year <- (SON_gnip$seas.year + 1)
+```
+
+```{r}
+SON_nextyr_gnip <- SON_gnip %>% group_by(new_seas_year) %>% summarise(mean = mean(O18, na.rm = TRUE))
+```
+
+
+This SHOULD allow correlations to be for the previous JJA season (double check)
+```{r}
+compare_to_gnip2 <- tab[20:44,]
+```
+
+
+```{r}
+cor.test(JJA_annual_gnip[['mean']], compare_to_gnip2[['X619']])
+```
+
+
+
+
+
+
+Use GNIP as a treeclim file
+
+```{r}
+head(gnip)
+```
+
+
+
+
+
+
+```{r}
+annual_summary <- raw %>%
+  group_by(year) %>%
+  summarise(mean = mean(o18corr, na.rm = TRUE))
+annual_summary<- as.data.frame((annual_summary))
+rownames(annual_summary) <- annual_summary$year
+annual_summary[,1] <- NULL
+annual_summary$samp.depth <- c(8,8,8,6,8,7,8,7,9,9,9,9,9,7,8,8,8,8,8,8,9,9,9,8,9,9,9,7,9,9,9,8,9,8,9,9,9,9,9,8,9,9,10,10,10,10,10,9,9,9,10,9,10,10,10,10,10,9,9)
+```
+
+```{r}
+treeclim_yrs <- gnip_treeclim %>% group_by(year) %>% summarise(mean = mean(O18))
+```
+
+Treeclim will not work with thegnip dataset, as it only takes years with complete climate data. Must figure out a workaround
+
+```{r}
+treeclim_months <- gnip_treeclim %>% group_by(month) %>% summarise(mean = mean(O18, na.rm=TRUE))
+```
+
+```{r}
+gnip_fill <- read.csv("CG_GNIP_filled.csv")
+gnip_fill$Date <- parse_date_time(gnip_fill$Date, "mdy")
+gnip_fill$month <- month(gnip_fill$Date)
+gnip_fill$year <- year(gnip_fill$Date)
+gnip_fill <- gnip_fill[1:156,]
+gnip_treeclim <- data.frame(gnip_fill$year, gnip_fill$month, gnip_fill$O18)
+colnames(gnip_treeclim) <- c("year","month","O18")
+```
+
+```{r}
+split_summary <- annual_summary[22:32,]
+```
+
+
+```{r}
+dcc(annual_summary, gnip_treeclim, .range(-1:-12))
+```
+
+
+
+
+
+Core means for whole cores
+```{r}
+colMeans(master, na.rm=TRUE)
+```
+
+
+
+Core means for 1960-2018
+```{r}
+colMeans(master[653:711,], na.rm=TRUE)
+```
+
+```{r}
+ids <- read.ids(master, stc=c(4,2,1))
+full_treemeans <- treeMean(master, ids, na.rm=TRUE) 
+colMeans(full_treemeans)
+```
+
+
+
+Tree means for whole cores
+```{r}
+WidthMeans <- colMeans(full_treemeans, na.rm=TRUE)
+```
+
+Tree means for 1960-2018
+```{r}
+modernWidthMeans <- colMeans(full_treemeans[653:711,], na.rm=TRUE)
+```
+
+```{r}
+widthmeans_df <- data.frame(WidthMeans)
+widthmeans.ord <- widthmeans_df[c(4,2,5,9,8,10,6,1,7,3),]
+```
+
+
+```{r}
+modernWidthMeans_df <- data.frame(modernWidthMeans)
+modernwidthmeans.ord <- modernWidthMeans_df[c(4,2,5,9,8,10,6,1,7,3),]
+```
+
+```{r}
+plot(o18_means, widthmeans.ord)
+plot(o18_means, modernwidthmeans.ord)
+```
+
+```{r}
+cor.test(o18_means, modernwidthmeans.ord)
+```
+
+
+
+```{r}
+plot(c13_means, widthmeans.ord)
+plot(c13_means, modernwidthmeans.ord)
+```
+
+```{r}
+DBH <- c(72,75,91,24,86,39,43,65,83,70)
+```
+
+```{r}
+plot(o18_means, DBH)
+plot(c13_means, DBH)
+```
+
+```{r}
+cor.test(o18_means, DBH)
+```
+
+
+
+```{r}
+o18_sd <- apply(tab, MARGIN = 2, sd, na.rm=TRUE)
+c13_sd <- apply(tab2, MARGIN=2, sd, na.rm=TRUE)
+```
+
+```{r}
+plot(o18_sd, soildepths)
+plot(o18_sd, canopycovers)
+plot(o18_sd, DBH)
+plot(o18_means, o18_sd)
+```
+
+```{r}
+cor.test(o18_means, o18_sd)
+```
+
+
+
+
+```{r}
+plot(c13_sd, soildepths)
+plot(c13_sd, canopycovers)
+plot(c13_sd, DBH)
+plot(c13_means, c13_sd)
+```
+
+
+```{r}
+o18_annual_sd <- apply(tab, MARGIN = 1, sd, na.rm=TRUE)
+c13_annual_sd <- apply(tab2, MARGIN = 1, sd, na.rm=TRUE)
+```
+
+```{r}
+plot(c(1960:2018), o18_annual_sd)
+plot(c(1960:2018), c13_annual_sd)
+```
+
+Divide DBH by avg ring width = rough age (smaller number = younger, larger = older)
+
+```{r}
+rough_age <- DBH/widthmeans.ord
+```
+
+```{r}
+rough_age
+```
+
+
+```{r}
+plot(o18_means, rough_age)
+plot(c13_means, rough_age)
+plot(o18_sd, rough_age)
+plot(c13_sd, rough_age)
+```
+
+```{r}
+cor.test(o18_sd, modernwidthmeans.ord)
+```
+
+
+```{r}
+compare_prysm <- annual_summary[1:54,]
+prysm_output <- prysm[3:56,]
+```
+
+
+
+```{r}
+cor.test(compare_prysm$mean, prysm_output$prysm)
+```
+
+```{r}
+newprysm <- read.csv("prysm_SHseason_output.csv")
+```
+
+```{r}
+compare_prysm <- annual_summary[1:53,]
+newprysm_output <- newprysm[4:56,]
+```
+
+```{r}
+cor.test(compare_prysm$mean, newprysm_output$prysm)
+```
+
+```{r}
+prysm_combine <- merge(compare_prysm, newprysm_output, by="year")
+```
+
+
+Make line plot for prysm
+
+```{r}
+ggplot(prysm_combine, aes(x=year)) + 
+  geom_line(aes(y = mean), color = "darkred") + 
+  geom_line(aes(y = prysm), color="steelblue", linetype="twodash") 
+```
+
+
+
+```{r}
+prysm_full <- read.csv("prysm_full.csv")
+prysm_full$date <- parse_date_time(prysm_full$date, "mdy")
+prysm_full <- prysm_full[25:672,]
+```
+
+```{r}
+annual_mean_o18 <- annual_summary[1:54,]
+```
+
+Compare PRYSM monthly output:
+
+```{r}
+jan_prysm <- subset(prysm_full, month == 1)
+feb_prysm <- subset(prysm_full, month == 2)
+mar_prysm <- subset(prysm_full, month == 3)
+apr_prysm <- subset(prysm_full, month == 4)
+may_prysm <- subset(prysm_full, month == 5)
+jun_prysm <- subset(prysm_full, month == 6)
+jul_prysm <- subset(prysm_full, month == 7)
+aug_prysm <- subset(prysm_full, month == 8)
+sep_prysm <- subset(prysm_full, month == 9)
+oct_prysm <- subset(prysm_full, month == 10)
+nov_prysm <- subset(prysm_full, month == 11)
+dec_prysm <- subset(prysm_full, month == 12)
+```
+
+```{r}
+cor.test(annual_mean_o18$mean, dec_prysm$d18o)
+```
+
+
+```{r}
+temp_prysm <- merge(annual_mean_o18, aug_prysm, by="year")
+ggplot(temp_prysm, aes(x=year)) + 
+  geom_line(aes(y = mean), color = "darkred") + 
+  geom_line(aes(y = d18o), color="steelblue", linetype="twodash") 
+```
+
+
+Compare growing season prysm output to data:
+
+```{r}
+growingseason_prysm <- subset(prysm_full, month == 12 | month ==1 | month == 2)
+```
+
+```{r}
+gs_summary <- growingseason_prysm %>% group_by(seasYear) %>% summarise(d18o = mean(d18o, na.rm = TRUE))
+gs_summary <- gs_summary[2:55,]
+colnames(gs_summary) <- c("year","d18o")
+```
+
+```{r}
+cor.test(annual_mean_o18$mean, gs_summary$d18o)
+```
+
+
+```{r}
+temp_prysm_gs <- merge(annual_mean_o18, gs_summary, by="year")
+ggplot(temp_prysm_gs, aes(x=year)) + 
+  geom_line(aes(y = mean), color = "darkred") + 
+  geom_line(aes(y = d18o), color="steelblue", linetype="twodash") 
+```
+
+Compare individual tree series to PRYSM:
+
+```{r}
+tab_prysm <- tab[1:54,]
+```
+
+```{r}
+cor.test(tab_prysm$X619, feb_prysm$d18o)
+```
+
+Year(?) - 617
+
+feb - 605
+Mar-604 (negative), 606(negative), 607(negative), 617 (negative)
+Apr - 604(negative), 609
+May - 609
+Jun - 604(negative), 605(negative), 611
+Jul - 611
+Aug - 605, 609
+sep - 604(negative), 617(negative)
+
+Plotting:
+
+```{r}
+tab_prysm$year <- rownames(tab_prysm)
+tab_prysm_comb <- merge(tab_prysm[1:53,], newprysm_output, by="year") 
+```
+
+```{r}
+ggplot(tab_prysm_comb, aes(x=year)) + 
+  geom_line(aes(y = X603), color = "darkred") + 
+  geom_line(aes(y = prysm), color="steelblue", linetype="twodash")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+** Don't even touch this yet **
+May need to adjust dates due to SH dating (2018 is Dec 2018 - May 2019)
+
+```{r}
+silo <- read.csv("silo_monthly_1958_2019.csv")
+```
+
+```{r}
+annual_summary <- raw %>%
+  group_by(year) %>%
+  summarise(mean = mean(o18corr, na.rm = TRUE))
+annual_summary<- as.data.frame((annual_summary))
+rownames(annual_summary) <- annual_summary$year
+annual_summary[,1] <- NULL
+annual_summary$samp.depth <- c(8,8,8,6,8,7,8,7,9,9,9,9,9,7,8,8,8,8,8,8,9,9,9,8,9,9,9,7,9,9,9,8,9,8,9,9,9,9,9,8,9,9,10,10,10,10,10,9,9,9,10,9,10,10,10,10,10,9,9)
+```
+
+```{r}
+dcc(annual_summary, silo, .range(-1:12))
+```
+
+```{r}
+seascorr(annual_summary, silo)
+```
+
+```{r}
+plot(seascorr(annual_summary, silo))
+```
+
+
+```{r}
+newdf <- as.data.frame(tab$X619)
+rownames(newdf) <- rownames(tab)
+newdf$samp.depth <- 1
+dcc(newdf, silo, .range(-1:12))
+```
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+ERA_precip <- brick("ERA5_precip.gri")
+ERA_t2m <- brick("ERA5_t2m.gri")
+```
+
+Create yearly averages
+
+```{r}
+datC <- brick("ERA5_t2m.gri")
+```
+
+```{r}
+yr <- "1955" # Year you want to subset
+
+sel_y <- names(datC)[substr(names(datC), 2, 5) %in% yr] #Creates true/false field of rasters for that yr
+#use that index to subset the raster brick
+datY <- subset(datC, sel_y, value=T) #subsets the dataset of only those that are true
+tail(names(datY), 30)
+mean <- calc(datY, fun = mean)
+```
+
+```{r}
+annual_ERA_t2m <- raster(ncol=720, nrow=360, xmn=0.125, xmx=180.125, ymn=-89.875, ymx=0.125, crs=CRS("+proj=longlat +datum=WGS84"))
+for (yr in 1960:2018){
+  sel_y <- names(datC)[substr(names(datC), 2, 5) %in% yr] #Creates true/false field of rasters for that yr
+#use that index to subset the raster brick
+datY <- subset(datC, sel_y, value=T) #subsets the dataset of only those that are true
+mean <- calc(datY, fun = mean)
+annual_ERA_t2m <- brick(annual_ERA_t2m, mean)
+}
+```
+
+
+
+Combine all of the ERA data together into a single stack (AND CROP TO 1958 - 2013! Change this if needed)
+```{r}
+ERA_t2m_sub <- subset(ERA_t2m, 109:828)
+ERA_precip_sub <- subset(ERA_precip, 109:828)
+```
+
+
+```{r}
+ar.t2m <- as.array(ERA_t2m_sub)
+ar.prcp <- as.array(ERA_precip_sub)
+```
+
+
+
+
+```{r}
+apply(ar.t2m, 1:2, rcorr, MRD_18o, type="pearson")
+```
+
+This is in list form basically. The cells go like this
+
+1   5   9   13  17
+2   6   10  14  18
+3   7   11  15  19
+4   8   12  16  20
+
+```{r}
+z <- apply(ar.prcp, 1:2, rcorr, MRD_18o, type="pearson")
+```
+
+correlation = z[[x]][[1]][2]
+significance = z[[x]][[3]][2]
+
+Up next: create corr and sig arrays
+
+Change (67,89) to new extent:
+
+```{r}
+corr = array(0, dim=c(360,720) )
+sig = array(0, dim=c(360,720) )
+```
+
+Change 5963 to number of cells in new extent (ensure routing is correct):
+
+Must transpose corr and sig to get right dimensions
+```{r}
+for (x in 1:259200)
+{
+corr[x] <- z[[x]][[1]][2]
+sig[x] <- z[[x]][[3]][2]
+}
+corr <- t(corr)
+sig <- t(sig)
+```
+
+
+
+
+Make it the right structure(?)
+
+```{r}
+l <- list(corr, sig)
+a <- do.call(rbind, l)
+library(abind)
+a <- abind(l, along=3)
+a
+```
+
+Change this brick call to get correct resolution, extent, etc
+```{r}
+r <- brick(a, xmn=0.125, xmx=180.125, ymn=-89.875, ymx=0.125, crs=CRS("+proj=longlat +datum=WGS84"))
+r
+```
+0.125, 180.125, -89.875, 0.125  (xmin, xmax, ymin, ymax)
+```{r}
+plot(r)
+```
+
+Create raster of corrs:
+
+```{r}
+writeRaster(r, "o18_prcp_corr")
+```
+
+
+
+
+
