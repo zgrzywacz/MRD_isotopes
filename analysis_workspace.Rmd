@@ -371,6 +371,15 @@ annual_summary$samp.depth <- c(8,8,8,6,8,7,8,7,9,9,9,9,9,7,8,8,8,8,8,8,9,9,9,8,9
 ```
 
 ```{r}
+gnip_fill <- read.csv("CG_GNIP_filled.csv")
+gnip_fill$Date <- parse_date_time(gnip_fill$Date, "mdy")
+gnip_fill$month <- month(gnip_fill$Date)
+gnip_fill$year <- year(gnip_fill$Date)
+gnip_treeclim <- data.frame(gnip_fill$year, gnip_fill$month, gnip_fill$O18)
+colnames(gnip_treeclim) <- c("year","month","O18")
+```
+
+```{r}
 treeclim_yrs <- gnip_treeclim %>% group_by(year) %>% summarise(mean = mean(O18))
 ```
 
@@ -380,24 +389,37 @@ Treeclim will not work with thegnip dataset, as it only takes years with complet
 treeclim_months <- gnip_treeclim %>% group_by(month) %>% summarise(mean = mean(O18, na.rm=TRUE))
 ```
 
-```{r}
-gnip_fill <- read.csv("CG_GNIP_filled.csv")
-gnip_fill$Date <- parse_date_time(gnip_fill$Date, "mdy")
-gnip_fill$month <- month(gnip_fill$Date)
-gnip_fill$year <- year(gnip_fill$Date)
-gnip_fill <- gnip_fill[1:156,]
-gnip_treeclim <- data.frame(gnip_fill$year, gnip_fill$month, gnip_fill$O18)
-colnames(gnip_treeclim) <- c("year","month","O18")
-```
 
 ```{r}
-split_summary <- annual_summary[22:32,]
+test_summary <- annual_summary
+test_summary$year <- as.numeric(rownames(test_summary))
+test_summary$year <- (test_summary$year + 1)
+rownames(test_summary) <- test_summary$year
+test_summary <- test_summary[,-3]
 ```
 
 
 ```{r}
-dcc(annual_summary, gnip_treeclim, .range(-1:-12))
+dcc(test_summary, gnip_treeclim, .range(-2:12))
 ```
+
+I THINK:
+using rownames(tab) Will correlate tree ring for Oct.1960 - Sep(ish) 1961 to GNIP for 1959-1960
+Using rownames(test_summary) will correlate tree ring fro Oct 1960-Sep1961 to GNIP for 1960-61
+
+```{r}
+single_tree <- data.frame(mean=tab$X619, samp.depth=1)
+rownames(single_tree) = rownames(tab)
+```
+
+
+```{r}
+dcc(single_tree, gnip_treeclim, .range(-6:12))
+```
+
+
+
+
 
 
 
