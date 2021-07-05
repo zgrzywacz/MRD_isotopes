@@ -192,6 +192,27 @@ ggplot(data=raw, aes(x=year, y=o18corr, group=as.factor(Tree_ID))) +
   scale_color_brewer(palette="Spectral")
 ```
 
+Removing flyers:
+1. Is it an outlier for voltage? (>5) If yes:
+2. Is it an outlier for BOTH O18 and C13? If yes, remove it
+To remove:
+619 1974
+619 1978
+609 1982
+Maybe: 606 1997
+
+Just removed 1973-1978 for 619. Might undo and just remove 74,78
+606 and 607 are a little high in voltage across the board. Just to note 
+
+Look into removing low 605 (1964 or so) due to LOW voltage. Possibly same for 603 1975, 611 1962
+
+
+```{r}
+ggplot(data=tab, aes(x=rownames(tab), y=X611)) +
+  geom_line()+
+  geom_point()
+```
+
 
 ```{r}
 ggplot(data=raw, aes(x=year, y=c13corr, group=as.factor(Tree_ID))) +
@@ -712,6 +733,21 @@ ggplot(tab_prysm_comb, aes(x=year)) +
   geom_line(aes(y = prysm), color="steelblue", linetype="twodash")
 ```
 
+
+
+
+Figure out what to do for NAs in oxygen series.
+Then:
+Detrend
+corr.rwl.seg
+chron
+corr.series.seg(?)
+rwl.stats
+rwl.stats.running
+
+```{r}
+detrend(tab)
+```
 
 
 
