@@ -852,6 +852,26 @@ lines(upslope_summary$year, downslope_summary$mean, pch = 18, col = "blue", type
 5. Standardize 18O
 
 
+```{r}
+standardize_o18 <- function(num) {
+  new_std <- tab[[num]] - o18_means[[num]]
+  return(new_std)
+}
+```
+
+```{r}
+stand_o18 <- data.frame(row.names = rownames(tab))
+for (x in c("X603","X604","X605","X606","X607","X609","X611","X612","X617","X619")){
+  stand_o18[[x]] <- standardize_o18(x)
+}
+```
+
+```{r}
+pheatmap(as.matrix(stand_o18), scale="none", cluster_rows = FALSE, cluster_cols = FALSE)
+```
+
+
+
 
 6. GNIP pearson correlations
 
