@@ -733,7 +733,17 @@ ggplot(tab_prysm_comb, aes(x=year)) +
   geom_line(aes(y = prysm), color="steelblue", linetype="twodash")
 ```
 
+Tasks as of 7/5:
 
+1. Find flyers
+Identified years to remove: 619 1973-1978; 609 1982; 606 1997
+Others that could possibly be removed
+
+2. See how similar RW is between trees
+
+It's variable, but that variability is not necessarily correlated with 18O
+
+3. Run oxygen thru dplR in cofecha
 
 
 Figure out what to do for NAs in oxygen series.
@@ -746,10 +756,121 @@ rwl.stats
 rwl.stats.running
 
 ```{r}
-detrend(tab)
+filled <- read.csv("filled_18o.csv")
+rownames(filled) <- filled[,1]
+filled[,1] <- NULL
 ```
 
 
+```{r}
+detrended_18o <- detrend(filled, method="Spline")
+```
+
+```{r}
+corr.rwl.seg(detrended_18o, seg.length = 20, bin.floor=0)
+```
+
+```{r}
+chron(detrended_18o)
+```
+
+
+```{r}
+rwl.stats(filled)
+```
+
+```{r}
+rwl.stats(detrended_18o)
+```
+
+```{r}
+crn.plot(chron(detrended_18o))
+```
+
+```{r}
+strip.rwl(filled)
+```
+
+
+
+4. Combine groupings -  create chronologies - analyze
+
+Reminder of groups:
+
+603 - 619, 612, 605
+619 - 603, 605, 612
+612 - 619, 603
+
+605 - 619, 604, 603 ---------------------Link between groups maybe?
+
+604 - 607, 609, 605
+607 - 604, 611
+609 - 604
+611 - 607
+
+606 - 617**
+617 - 606**
+
+
+
+```{r}
+downslope_sites <- subset(tab, select=c("X603","X605","X612","X619"))
+upslope_sites <- subset(tab, select=c("X604","X607","X609","X611"))
+```
+
+```{r}
+downslope_raw <- raw %>% filter(Tree_ID == 603 | Tree_ID == 605 |Tree_ID == 612 |Tree_ID == 619)
+upslope_raw <- raw %>% filter(Tree_ID == 604 | Tree_ID == 607 |Tree_ID == 609 |Tree_ID == 611)
+```
+
+```{r}
+ggplot(data=downslope_raw, aes(x=year, y=o18corr, group=as.factor(Tree_ID))) +
+  geom_line(aes(color=as.factor(Tree_ID)))+
+  geom_point(aes(color=as.factor(Tree_ID)))+
+  scale_color_brewer(palette="Spectral")
+```
+
+```{r}
+ggplot(data=upslope_raw, aes(x=year, y=o18corr, group=as.factor(Tree_ID))) +
+  geom_line(aes(color=as.factor(Tree_ID)))+
+  geom_point(aes(color=as.factor(Tree_ID)))+
+  scale_color_brewer(palette="Spectral")
+```
+```{r}
+upslope_summary <- upslope_raw %>% group_by(year) %>% summarise(mean = mean(o18corr, na.rm = TRUE))
+downslope_summary <- downslope_raw %>% group_by(year) %>% summarise(mean = mean(o18corr, na.rm = TRUE))
+```
+
+```{r}
+plot(upslope_summary$year, upslope_summary$mean, type = "b", frame = FALSE, pch = 19, 
+     col = "red", xlab = "x", ylab = "y")
+# Add a second line
+lines(upslope_summary$year, downslope_summary$mean, pch = 18, col = "blue", type = "b", lty = 2)
+```
+
+
+5. Standardize 18O
+
+
+
+6. GNIP pearson correlations
+
+
+
+
+
+
+
+
+7. Compare PRYSM to CG GNIP
+-Possibly use isoGSM for PRYSM
+
+
+
+
+
+
+8. Carbon Suess effect correction
 
 
 
