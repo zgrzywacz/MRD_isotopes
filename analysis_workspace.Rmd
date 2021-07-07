@@ -768,9 +768,6 @@ filled[,1] <- NULL
 detrended_18o <- detrend(filled, method="Spline")
 ```
 
-```{r}
-corr.rwl.seg(detrended_18o, seg.length = 20, bin.floor=0)
-```
 
 ```{r}
 chron(detrended_18o)
@@ -882,7 +879,7 @@ gnip
 ```
 
 ```{r}
-compare_to_gnip <- tab[20:43,]
+compare_to_gnip <- tab[19:42,]
 ```
 
 ```{r}
@@ -899,21 +896,40 @@ return(corrs)
 ```
 
 ```{r}
-gnipcorrs("X603")
+yr.to.yr.corrs <- data.frame(row.names = c("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"))
 ```
 
 ```{r}
-mon_gnip <- subset(gnip, month == 6)
-mon_annual_gnip <- mon_gnip %>% group_by(year) %>% summarise(mean = mean(O18, na.rm = TRUE))
+nextyr.corrs <- data.frame(row.names = c("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"))
 ```
 
+
+```{r}
+nextyr.corrs$X619 <- gnipcorrs("X619")
+```
 
 
 7. Compare PRYSM to CG GNIP
 -Possibly use isoGSM for PRYSM
 
 
+```{r}
+prysm_full$Date <- prysm_full$date
+```
 
+```{r}
+prysm_vs_gnip <- merge(prysm_full, gnip, by="Date")
+```
+
+```{r}
+ggplot(prysm_vs_gnip, aes(x=Date)) + 
+  geom_line(aes(y = O18), color = "darkred") + 
+  geom_line(aes(y = d18o), color="steelblue", linetype="twodash")
+```
+
+```{r}
+cor.test(prysm_vs_gnip$d18o, prysm_vs_gnip$O18)
+```
 
 
 
