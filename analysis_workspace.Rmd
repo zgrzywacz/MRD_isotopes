@@ -118,6 +118,8 @@ pheatmap(as.matrix(ring_means), scale="none", cluster_rows = FALSE, cluster_cols
 cor.test(ring_means[['3']], tab2[['X603']])
 ```
 
+
+
 Corrs are negative. Only some are highly correlated between 18o and ring width.
 Carbon corrs are also negative, more are significant
 
@@ -278,7 +280,7 @@ compare_to_gnip <- tab[19:43,]
 ```
 
 ```{r}
-cor.test(seas_annual_gnip[['mean']], compare_to_gnip[['X605']])
+cor.test(seas_annual_gnip[['mean']], compare_to_gnip[['X606']])
 ```
  606 - p value 0.004875. cor is 0.63
  
@@ -875,10 +877,35 @@ pheatmap(as.matrix(stand_o18), scale="none", cluster_rows = FALSE, cluster_cols 
 
 6. GNIP pearson correlations
 
+```{r}
+gnip
+```
 
+```{r}
+compare_to_gnip <- tab[20:43,]
+```
 
+```{r}
+gnipcorrs <- function(tree){
+corrs <- rep(NA, 10)
+for (m in 1:12){
+mon_gnip <- subset(gnip, month == m)
+mon_annual_gnip <- mon_gnip %>% group_by(year) %>% summarise(mean = mean(O18, na.rm = TRUE))
+test <- cor.test(mon_annual_gnip[['mean']], compare_to_gnip[[tree]])
+corrs[m] <- test$estimate
+}
+return(corrs)
+}
+```
 
+```{r}
+gnipcorrs("X603")
+```
 
+```{r}
+mon_gnip <- subset(gnip, month == 6)
+mon_annual_gnip <- mon_gnip %>% group_by(year) %>% summarise(mean = mean(O18, na.rm = TRUE))
+```
 
 
 
