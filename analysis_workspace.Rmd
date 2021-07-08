@@ -847,6 +847,100 @@ plot(upslope_summary$year, upslope_summary$mean, type = "b", frame = FALSE, pch 
 lines(upslope_summary$year, downslope_summary$mean, pch = 18, col = "blue", type = "b", lty = 2)
 ```
 
+```{r}
+silo <- read.csv("silo_monthly_1958_2019.csv")
+```
+
+Convert to correct format, add sample depth.
+
+```{r}
+upslope_summary<- as.data.frame((upslope_summary))
+rownames(upslope_summary) <- upslope_summary$year
+upslope_summary[,1] <- NULL
+upslope_summary$samp.depth <- c(4,3,4,4,4,4,4,3,4,4,4,4,4,4,4,3,3,3,4,4,4,4,2,3,3,3,3,2,3,3,3,3,3,3,3,3,3,3,3,3,3,4,4,4,4,4,4,3,3,3,4,4,4,4,4,4,4,4,4)
+```
+
+
+```{r}
+dcc(upslope_summary, silo, .range(-1:12))
+```
+
+```{r}
+downslope_summary<- as.data.frame((downslope_summary))
+rownames(downslope_summary) <- downslope_summary$year
+downslope_summary[,1] <- NULL
+downslope_summary$samp.depth <- c(3,4,3,2,3,2,3,3,4,4,4,4,4,1,2,3,3,3,2,3,4,3,4,3,4,4,4,4,4,4,4,3,4,3,4,4,4,4,4,4,4,3,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,3,3)
+```
+
+```{r}
+dcc(downslope_summary, silo, .range(-1:12))
+```
+
+```{r}
+rownames(downslope_summary) <- (as.integer(rownames(downslope_summary))+1)
+rownames(upslope_summary) <- (as.integer(rownames(upslope_summary))+1)
+```
+
+```{r}
+dcc(upslope_summary, silo, .range(-1:12))
+```
+
+```{r}
+dcc(downslope_summary, silo, .range(-1:12))
+```
+
+Rework gnip tool for this
+
+```{r}
+newsilo <- silo[37:744,]
+```
+
+
+```{r}
+climcorrs <- function(trees){
+corrs <- rep(NA, 10)
+for (m in 1:12){
+mon_silo <- subset(newsilo, month == m)
+mon_annual_silo <- mon_silo %>% group_by(year) %>% summarise(mean = mean(precip, na.rm = TRUE))
+test <- cor.test(mon_annual_silo[['mean']], trees)
+corrs[m] <- test$estimate
+}
+return(corrs)
+}
+```
+
+```{r}
+climcorrs(upslope_summary$mean)
+```
+```{r}
+gnipcorrs2 <- function(trees){
+corrs <- rep(NA, 10)
+for (m in 1:12){
+mon_gnip <- subset(gnip, month == m)
+mon_annual_gnip <- mon_gnip %>% group_by(year) %>% summarise(mean = mean(O18, na.rm = TRUE))
+test <- cor.test(mon_annual_gnip[['mean']], trees)
+corrs[m] <- test$estimate
+}
+return(corrs)
+}
+```
+
+```{r}
+slope_compare <- upslope_summary[19:42,]
+```
+
+```{r}
+help <- data.frame(row.names = c("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"))
+```
+```{r}
+help$up_next <- gnipcorrs2(slope_compare$mean)
+```
+
+```{r}
+mon_gnip <- subset(gnip, month == 1)
+mon_annual_gnip <- mon_gnip %>% group_by(year) %>% summarise(mean = mean(O18, na.rm = TRUE))
+```
+
 
 5. Standardize 18O
 
@@ -930,6 +1024,14 @@ ggplot(prysm_vs_gnip, aes(x=Date)) +
 ```{r}
 cor.test(prysm_vs_gnip$d18o, prysm_vs_gnip$O18)
 ```
+
+
+
+
+
+
+
+
 
 
 
