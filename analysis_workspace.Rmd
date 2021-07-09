@@ -916,7 +916,7 @@ climcorrs(upslope_summary$mean)
 gnipcorrs2 <- function(trees){
 corrs <- rep(NA, 10)
 for (m in 1:12){
-mon_gnip <- subset(gnip, month == m)
+mon_gnip <- subset(gnip_outlier, month == m)
 mon_annual_gnip <- mon_gnip %>% group_by(year) %>% summarise(mean = mean(O18, na.rm = TRUE))
 test <- cor.test(mon_annual_gnip[['mean']], trees)
 corrs[m] <- test$estimate
@@ -932,6 +932,7 @@ slope_compare <- upslope_summary[19:42,]
 ```{r}
 help <- data.frame(row.names = c("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"))
 ```
+
 ```{r}
 help$up_next <- gnipcorrs2(slope_compare$mean)
 ```
@@ -940,6 +941,79 @@ help$up_next <- gnipcorrs2(slope_compare$mean)
 mon_gnip <- subset(gnip, month == 1)
 mon_annual_gnip <- mon_gnip %>% group_by(year) %>% summarise(mean = mean(O18, na.rm = TRUE))
 ```
+
+
+Standardize groups before averaging
+
+```{r}
+standardize_up <- function(num) {
+  up_std <- upslope_sites[[num]] - up_means[[num]]
+  return(up_std)
+}
+standardize_down <- function(num) {
+  down_std <- downslope_sites[[num]] - down_means[[num]]
+  return(down_std)
+}
+```
+
+```{r}
+up_means <- colMeans(upslope_sites, na.rm=TRUE)
+down_means <- colMeans(downslope_sites, na.rm=TRUE)
+```
+
+```{r}
+stand_up_o18 <- data.frame(row.names = rownames(tab))
+for (x in c("X604","X607","X609","X611")){
+  stand_up_o18[[x]] <- standardize_up(x)
+}
+```
+
+```{r}
+stand_down_o18 <- data.frame(row.names = rownames(tab))
+for (x in c("X603","X605","X612","X619")){
+  stand_down_o18[[x]] <- standardize_down(x)
+}
+```
+
+
+```{r}
+downslope_std_summary <- data.frame(rowMeans(stand_down_o18, na.rm=TRUE))
+upslope_std_summary <- data.frame(rowMeans(stand_up_o18, na.rm=TRUE))
+colnames(upslope_std_summary) <- "mean"
+colnames(downslope_std_summary) <- "mean"
+```
+
+```{r}
+plot(rownames(upslope_std_summary), upslope_std_summary$mean, type = "b", frame = FALSE, pch = 19, 
+     col = "red", xlab = "x", ylab = "y")
+# Add a second line
+lines(rownames(upslope_std_summary), downslope_std_summary$mean, pch = 18, col = "blue", type = "b", lty = 2)
+```
+
+
+Correlations will probably be the same but it's worth doing them again with these series
+
+```{r}
+slope_compare <- downslope_std_summary[19:42,]
+```
+
+```{r}
+gnipcorrs2(slope_compare)
+```
+
+climcorrs
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 5. Standardize 18O
@@ -963,6 +1037,24 @@ for (x in c("X603","X604","X605","X606","X607","X609","X611","X612","X617","X619
 pheatmap(as.matrix(stand_o18), scale="none", cluster_rows = FALSE, cluster_cols = FALSE)
 ```
 
+```{r}
+stand_o18$date <- as.integer(rownames(stand_o18))
+```
+
+
+```{r}
+ggplot(stand_o18, aes(x=date)) + 
+  geom_line(aes(y = X603), color = "darkred") + 
+  geom_line(aes(y = X604), color="steelblue") +
+  geom_line(aes(y = X605), color = "orange") + 
+  geom_line(aes(y = X606), color="aquamarine") +
+  geom_line(aes(y = X607), color = "brown") + 
+  geom_line(aes(y = X609), color="deepskyblue")+
+  geom_line(aes(y = X611), color = "deeppink") + 
+  geom_line(aes(y = X612), color="darkviolet")+
+  geom_line(aes(y = X617), color = "coral") + 
+  geom_line(aes(y = X619), color="chocolate")
+```
 
 
 
@@ -1036,6 +1128,45 @@ cor.test(prysm_vs_gnip$d18o, prysm_vs_gnip$O18)
 
 
 8. Carbon Suess effect correction
+
+
+
+
+
+
+
+
+9. Removing GNIP outliers
+
+```{r}
+gnip_outlier <- gnip
+```
+
+
+```{r}
+gnip_outlier$O18[gnip_outlier$O18 > 1] <- NA
+```
+
+```{r}
+gnip_group_corrs <- data.frame(row.names = c("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"))
+```
+
+
+```{r}
+slope_compare <- downslope_summary[20:43,]
+next_compare <- downslope_summary[19:42,]
+gnip_group_corrs$down_prev <- gnipcorrs2(slope_compare$mean)
+gnip_group_corrs$down_next <- gnipcorrs2(next_compare$mean)
+```
+
+
+
+
+
+
+
+
+
 
 
 
