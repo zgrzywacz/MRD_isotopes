@@ -876,18 +876,6 @@ downslope_summary$samp.depth <- c(3,4,3,2,3,2,3,3,4,4,4,4,4,1,2,3,3,3,2,3,4,3,4,
 dcc(downslope_summary, silo, .range(-1:12))
 ```
 
-```{r}
-rownames(downslope_summary) <- (as.integer(rownames(downslope_summary))+1)
-rownames(upslope_summary) <- (as.integer(rownames(upslope_summary))+1)
-```
-
-```{r}
-dcc(upslope_summary, silo, .range(-1:12))
-```
-
-```{r}
-dcc(downslope_summary, silo, .range(-1:12))
-```
 
 Rework gnip tool for this
 
@@ -1160,12 +1148,39 @@ gnip_group_corrs$down_next <- gnipcorrs2(next_compare$mean)
 ```
 
 
+```{r}
+gnipcorrs2 <- function(trees){
+corrs <- rep(NA, 10)
+for (m in 1:12){
+mon_gnip <- subset(gnip_outlier, month == m)
+test <- cor.test(mon_gnip[['O18']], trees)
+corrs[m] <- test$estimate
+}
+return(corrs)
+}
+```
+
+
+```{r}
+gnipcorrs2(slope_compare$mean)
+```
+
+```{r}
+gnipcorrs2(next_compare$mean)
+```
+
+I am pretty sure that gnipcorrs2 works right the way above (and the way I had it before). The plotting below can help assure that:
 
 
 
+```{r}
+mon_gnip <- subset(gnip_outlier, month == 12)
+```
 
 
-
+```{r}
+plot(slope_compare$mean, mon_gnip$O18)
+```
 
 
 
