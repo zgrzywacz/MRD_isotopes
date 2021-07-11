@@ -31,51 +31,69 @@ library(dplR)
 ** Reading in data **
 
 ```{r}
-raw <- read.csv("raw_isotopes.csv")
-```
-
-```{r}
 substrRight <- function(x, n){
   substr(x, nchar(x)-n+1, nchar(x))
 }
 ```
 
 ```{r}
+raw <- read.csv("raw_isotopes.csv") # Raw isotope data
 raw$year <- substrRight(raw$sample_ID, 4)
 raw$year <- strtoi(raw$year)
-```
 
-```{r}
-prysm <- read.csv("prysm_output.csv")
-```
+prysm <- read.csv("prysm_output.csv") # pysm output
 
-```{r}
-prysm
-```
+annual_summary <- raw %>% group_by(year) %>% summarise(mean = mean(o18corr, na.rm = TRUE)) # Combined Isotope data
 
-
-```{r}
-annual_summary <- raw %>% group_by(year) %>% summarise(mean = mean(o18corr, na.rm = TRUE))
-```
-
-
-```{r}
-annual_summary
-```
-
-
-```{r}
-tab <- read.csv("tabulated_18o.csv")
+tab <- read.csv("tabulated_18o.csv") # Oxygen data tabulated
 rownames(tab) <- tab[,1]
 tab[,1] <- NULL
-```
 
-```{r}
-tab2 <- read.csv("tabulated_13c.csv")
+tab2 <- read.csv("tabulated_13c.csv") # carbon data tabulated
 rownames(tab2) <- tab2[,1]
 tab2[,1] <- NULL
+
+gnip <- read.csv("CG_GNIP.csv")
+gnip$Date <- parse_date_time(gnip$Date, "mdy")
+gnip$month <- month(gnip$Date)
+gnip$year <- year(gnip$Date)
+for (i in c(1:288)){
+if (gnip$month[i] < 9){
+  gnip$seas.year[i] = (gnip$year[i] - 1)
+}
+else{
+  gnip$seas.year[i] = gnip$year[i]
+}
+}
+
+gnip_outlier <- gnip
+gnip_outlier$O18[gnip_outlier$O18 > 1] <- NA
+
+silo <- read.csv("silo_monthly_1958_2019.csv")
 ```
 
+**Removal of flyers**
+
+Removing flyers:
+1. Is it an outlier for voltage? (>5) If yes:
+2. Is it an outlier for BOTH O18 and C13? If yes, remove it
+To remove:
+619 1974
+619 1978
+609 1982
+Maybe: 606 1997
+
+Just removed 1973-1978 for 619. Might undo and just remove 74,78
+606 and 607 are a little high in voltage across the board. Just to note 
+
+Look into removing low 605 (1964 or so) due to LOW voltage. Possibly same for 603 1975, 611 1962
+
+
+```{r}
+ggplot(data=tab, aes(x=rownames(tab), y=X611)) +
+  geom_line()+
+  geom_point()
+```
 
 
 ** Ring width detrending then correlations: **
@@ -85,40 +103,23 @@ master <- read.rwl("MRD6_master.rwl")
 ```
 
 ```{r}
-detrend.series(master$MRD606A, method="Spline")
-```
-
-```{r}
 detrends <- apply(master, MARGIN = 2, detrend.series, method="Spline")
-```
-
-```{r}
 detrend_df <- as.data.frame(detrends)
-```
-
-
-```{r}
 ids <- read.ids(detrend_df, stc=c(4,2,1))
-```
-
-```{r}
 treemeans <- treeMean(detrend_df, ids, na.rm=FALSE)
 ```
 
 ```{r}
-ring_means <- treemeans[653:711,]
+ring_means <- treemeans[653:711,] # Ring means for just 1960-2018
 ```
 
 ```{r}
 pheatmap(as.matrix(ring_means), scale="none", cluster_rows = FALSE, cluster_cols = FALSE)
 ```
-
-
+Change this to see corrs between each tree's isotopes and its rings:
 ```{r}
 cor.test(ring_means[['3']], tab2[['X603']])
 ```
-
-
 
 Corrs are negative. Only some are highly correlated between 18o and ring width.
 Carbon corrs are also negative, more are significant
@@ -126,10 +127,11 @@ Carbon corrs are also negative, more are significant
 
 ** Comparing & Correlating 18O and 13C series between trees **
 
+Oxygen:
 ```{r}
 pheatmap(as.matrix(tab), scale="none", cluster_rows = FALSE, cluster_cols = FALSE)
 ```
-
+Carbon:
 ```{r}
 pheatmap(as.matrix(tab2), scale="none", cluster_rows = FALSE, cluster_cols = FALSE)
 ```
@@ -178,12 +180,7 @@ cor(tab2, use = "complete.obs")
 
 Corrs generally higher for 13C than 18O could be because of trend
 
-
-
-
-
 ** Comparing to soil depth and canopy cover **
-
 
 ```{r}
 rowMeans(tab, na.rm=TRUE)
@@ -194,48 +191,13 @@ ggplot(data=raw, aes(x=year, y=o18corr, group=as.factor(Tree_ID))) +
   scale_color_brewer(palette="Spectral")
 ```
 
-Removing flyers:
-1. Is it an outlier for voltage? (>5) If yes:
-2. Is it an outlier for BOTH O18 and C13? If yes, remove it
-To remove:
-619 1974
-619 1978
-609 1982
-Maybe: 606 1997
-
-Just removed 1973-1978 for 619. Might undo and just remove 74,78
-606 and 607 are a little high in voltage across the board. Just to note 
-
-Look into removing low 605 (1964 or so) due to LOW voltage. Possibly same for 603 1975, 611 1962
-
-
-```{r}
-ggplot(data=tab, aes(x=rownames(tab), y=X611)) +
-  geom_line()+
-  geom_point()
-```
-
-
-```{r}
-ggplot(data=raw, aes(x=year, y=c13corr, group=as.factor(Tree_ID))) +
-  geom_line(aes(color=as.factor(Tree_ID)))+
-  geom_point(aes(color=as.factor(Tree_ID)))+
-  scale_color_brewer(palette="Spectral")
-```
-
-
-
 ```{r}
 o18_means <- apply(tab, MARGIN = 2, mean, na.rm=TRUE)
 c13_means <- apply(tab2, MARGIN=2, mean, na.rm=TRUE)
-```
 
-```{r}
 soildepths <- c(277.5,237.5,591.25,507.5,443.75,372.5,365,335,256.25,356.25)
 canopycovers <- c(83.5,76,79.25,83.25,86.25,34,73.25,80.75,81.25,84.25)
 ```
-
-
 
 ```{r}
 plot(o18_means, soildepths)
@@ -245,30 +207,7 @@ plot(o18_means, soildepths)
 cor.test(o18_means, soildepths)
 ```
 
-
 ** Compare to GNIP **
-
-```{r}
-gnip <- read.csv("CG_GNIP.csv")
-gnip$Date <- parse_date_time(gnip$Date, "mdy")
-```
-
-```{r}
-gnip$month <- month(gnip$Date)
-gnip$year <- year(gnip$Date)
-```
-
-```{r}
-for (i in c(1:288)){
-if (gnip$month[i] < 9){
-  gnip$seas.year[i] = (gnip$year[i] - 1)
-}
-else{
-  gnip$seas.year[i] = gnip$year[i]
-}
-}
-```
-
 
 ```{r}
 seas_annual_gnip <- gnip %>% group_by(seas.year) %>% summarise(mean = mean(O18, na.rm = TRUE))
@@ -292,7 +231,6 @@ cor.test(seas_annual_gnip[['mean']], compare_to_gnip[['X606']])
 plot(seas_annual_gnip[['mean']], compare_to_gnip[['X606']])
 ```
 
-
 ```{r}
 DJF_gnip <- subset(gnip, month == 12 | month == 1 | month == 2)
 MAM_gnip <- subset(gnip, month == 3 | month == 4 | month == 5)
@@ -314,8 +252,6 @@ JJA_annual_gnip <- rbind(JJA_annual_gnip, de)
 SON_annual_gnip <- rbind(df, SON_annual_gnip)
 ```
 
-
-
 ```{r}
 cor.test(JJA_annual_gnip[['mean']], compare_to_gnip[['X603']])
 ```
@@ -325,16 +261,12 @@ MAM: 606, 612
 JJA: 604, 605, 606, 607, 612, 617
 SON: 609, negative with 619 very odd
 
-
 609 is very poor correlation with everything except SON
-
 
 ```{r}
 mon_gnip <- subset(gnip, month == 8)
 mon_annual_gnip <- mon_gnip %>% group_by(seas.year) %>% summarise(mean = mean(O18, na.rm = TRUE))
-```
 
-```{r}
 de<-data.frame(2002, NA)
 names(de)<-c("seas.year","mean")
 mon_annual_gnip <- rbind(mon_annual_gnip, de)
@@ -345,43 +277,17 @@ mon_annual_gnip <- rbind(mon_annual_gnip, de)
 cor.test(mon_annual_gnip[['mean']], compare_to_gnip[['X619']])
 ```
 
-
-Next yr SON: Not worth looking at, but here's the code for it if you're interested:
-
-```{r}
-SON_gnip$new_seas_year <- (SON_gnip$seas.year + 1)
-```
-
-```{r}
-SON_nextyr_gnip <- SON_gnip %>% group_by(new_seas_year) %>% summarise(mean = mean(O18, na.rm = TRUE))
-```
-
-
 This SHOULD allow correlations to be for the previous JJA season (double check)
 ```{r}
 compare_to_gnip2 <- tab[20:44,]
 ```
-
 
 ```{r}
 cor.test(JJA_annual_gnip[['mean']], compare_to_gnip2[['X619']])
 ```
 
 
-
-
-
-
 Use GNIP as a treeclim file
-
-```{r}
-head(gnip)
-```
-
-
-
-
-
 
 ```{r}
 annual_summary <- raw %>%
@@ -391,29 +297,22 @@ annual_summary<- as.data.frame((annual_summary))
 rownames(annual_summary) <- annual_summary$year
 annual_summary[,1] <- NULL
 annual_summary$samp.depth <- c(8,8,8,6,8,7,8,7,9,9,9,9,9,7,8,8,8,8,8,8,9,9,9,8,9,9,9,7,9,9,9,8,9,8,9,9,9,9,9,8,9,9,10,10,10,10,10,9,9,9,10,9,10,10,10,10,10,9,9)
-```
 
-```{r}
 gnip_fill <- read.csv("CG_GNIP_filled.csv")
 gnip_fill$Date <- parse_date_time(gnip_fill$Date, "mdy")
 gnip_fill$month <- month(gnip_fill$Date)
 gnip_fill$year <- year(gnip_fill$Date)
 gnip_treeclim <- data.frame(gnip_fill$year, gnip_fill$month, gnip_fill$O18)
 colnames(gnip_treeclim) <- c("year","month","O18")
-```
 
-```{r}
 treeclim_yrs <- gnip_treeclim %>% group_by(year) %>% summarise(mean = mean(O18))
 ```
 
-Treeclim will not work with thegnip dataset, as it only takes years with complete climate data. Must figure out a workaround
+Treeclim will not work with the gnip dataset, as it only takes years with complete climate data. Must figure out a workaround
 
 ```{r}
 treeclim_months <- gnip_treeclim %>% group_by(month) %>% summarise(mean = mean(O18, na.rm=TRUE))
-```
 
-
-```{r}
 test_summary <- annual_summary
 test_summary$year <- as.numeric(rownames(test_summary))
 test_summary$year <- (test_summary$year + 1)
@@ -435,30 +334,11 @@ single_tree <- data.frame(mean=tab$X619, samp.depth=1)
 rownames(single_tree) = rownames(tab)
 ```
 
-
 ```{r}
 dcc(single_tree, gnip_treeclim, .range(-6:12))
 ```
 
-
-
-
-
-
-
-
-
-Core means for whole cores
-```{r}
-colMeans(master, na.rm=TRUE)
-```
-
-
-
-Core means for 1960-2018
-```{r}
-colMeans(master[653:711,], na.rm=TRUE)
-```
+**Compare to other factors**
 
 ```{r}
 ids <- read.ids(master, stc=c(4,2,1))
@@ -466,30 +346,18 @@ full_treemeans <- treeMean(master, ids, na.rm=TRUE)
 colMeans(full_treemeans)
 ```
 
-
-
 Tree means for whole cores
 ```{r}
 WidthMeans <- colMeans(full_treemeans, na.rm=TRUE)
 ```
 
-```{r}
-WidthMeans
-```
-
-
 Tree means for 1960-2018
 ```{r}
 modernWidthMeans <- colMeans(full_treemeans[653:711,], na.rm=TRUE)
-```
 
-```{r}
 widthmeans_df <- data.frame(WidthMeans)
 widthmeans.ord <- widthmeans_df[c(4,2,5,9,8,10,6,1,7,3),]
-```
 
-
-```{r}
 modernWidthMeans_df <- data.frame(modernWidthMeans)
 modernwidthmeans.ord <- modernWidthMeans_df[c(4,2,5,9,8,10,6,1,7,3),]
 ```
@@ -503,16 +371,12 @@ plot(o18_means, modernwidthmeans.ord)
 cor.test(o18_means, modernwidthmeans.ord)
 ```
 
-
-
 ```{r}
 plot(c13_means, widthmeans.ord)
 plot(c13_means, modernwidthmeans.ord)
 ```
 
 RW is pretty variable between trees, which could suggest different o18 means between trees. They do not seem correlated, however 
-
-
 
 ```{r}
 DBH <- c(72,75,91,24,86,39,43,65,83,70)
@@ -526,8 +390,6 @@ plot(c13_means, DBH)
 ```{r}
 cor.test(o18_means, DBH)
 ```
-
-
 
 ```{r}
 o18_sd <- apply(tab, MARGIN = 2, sd, na.rm=TRUE)
@@ -545,16 +407,12 @@ plot(o18_means, o18_sd)
 cor.test(o18_means, o18_sd)
 ```
 
-
-
-
 ```{r}
 plot(c13_sd, soildepths)
 plot(c13_sd, canopycovers)
 plot(c13_sd, DBH)
 plot(c13_means, c13_sd)
 ```
-
 
 ```{r}
 o18_annual_sd <- apply(tab, MARGIN = 1, sd, na.rm=TRUE)
@@ -573,11 +431,6 @@ rough_age <- DBH/widthmeans.ord
 ```
 
 ```{r}
-rough_age
-```
-
-
-```{r}
 plot(o18_means, rough_age)
 plot(c13_means, rough_age)
 plot(o18_sd, rough_age)
@@ -588,13 +441,12 @@ plot(c13_sd, rough_age)
 cor.test(o18_sd, modernwidthmeans.ord)
 ```
 
+**Prysm**
 
 ```{r}
 compare_prysm <- annual_summary[1:54,]
 prysm_output <- prysm[3:56,]
 ```
-
-
 
 ```{r}
 cor.test(compare_prysm$mean, prysm_output$prysm)
@@ -619,7 +471,6 @@ prysm_combine <- merge(compare_prysm, newprysm_output, by="year")
 prysm_combine$year <- as.numeric(prysm_combine$year)
 ```
 
-
 Make line plot for prysm
 
 ```{r}
@@ -628,8 +479,6 @@ ggplot(prysm_combine, aes(x=year)) +
   geom_line(aes(y = prysm), color="steelblue", linetype="twodash") +
   theme(legend.position="bottom")
 ```
-
-
 
 ```{r}
 prysm_full <- read.csv("prysm_full.csv")
@@ -666,7 +515,6 @@ cor.test(annual_mean_o18$mean, dec_prysm$d18o)
 annual_mean_o18$year <- rownames(annual_mean_o18)
 ```
 
-
 ```{r}
 temp_prysm <- merge(annual_mean_o18, jan_prysm, by="year")
 temp_prysm$year <- as.numeric(temp_prysm$year)
@@ -674,7 +522,6 @@ ggplot(temp_prysm, aes(x=year)) +
   geom_line(aes(y = mean), color = "darkred") + 
   geom_line(aes(y = d18o), color="steelblue", linetype="twodash") 
 ```
-
 
 Compare growing season prysm output to data:
 
@@ -761,18 +608,12 @@ rwl.stats.running
 filled <- read.csv("filled_18o.csv")
 rownames(filled) <- filled[,1]
 filled[,1] <- NULL
-```
-
-
-```{r}
 detrended_18o <- detrend(filled, method="Spline")
 ```
-
 
 ```{r}
 chron(detrended_18o)
 ```
-
 
 ```{r}
 rwl.stats(filled)
@@ -785,11 +626,6 @@ rwl.stats(detrended_18o)
 ```{r}
 crn.plot(chron(detrended_18o))
 ```
-
-```{r}
-strip.rwl(filled)
-```
-
 
 
 4. Combine groupings -  create chronologies - analyze
@@ -835,9 +671,18 @@ ggplot(data=upslope_raw, aes(x=year, y=o18corr, group=as.factor(Tree_ID))) +
   geom_point(aes(color=as.factor(Tree_ID)))+
   scale_color_brewer(palette="Spectral")
 ```
+
 ```{r}
 upslope_summary <- upslope_raw %>% group_by(year) %>% summarise(mean = mean(o18corr, na.rm = TRUE))
 downslope_summary <- downslope_raw %>% group_by(year) %>% summarise(mean = mean(o18corr, na.rm = TRUE))
+upslope_summary<- as.data.frame((upslope_summary))
+rownames(upslope_summary) <- upslope_summary$year
+upslope_summary[,1] <- NULL
+upslope_summary$samp.depth <- c(4,3,4,4,4,4,4,3,4,4,4,4,4,4,4,3,3,3,4,4,4,4,2,3,3,3,3,2,3,3,3,3,3,3,3,3,3,3,3,3,3,4,4,4,4,4,4,3,3,3,4,4,4,4,4,4,4,4,4)
+downslope_summary<- as.data.frame((downslope_summary))
+rownames(downslope_summary) <- downslope_summary$year
+downslope_summary[,1] <- NULL
+downslope_summary$samp.depth <- c(3,4,3,2,3,2,3,3,4,4,4,4,4,1,2,3,3,3,2,3,4,3,4,3,4,4,4,4,4,4,4,3,4,3,4,4,4,4,4,4,4,3,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,3,3)
 ```
 
 ```{r}
@@ -847,29 +692,10 @@ plot(upslope_summary$year, upslope_summary$mean, type = "b", frame = FALSE, pch 
 lines(upslope_summary$year, downslope_summary$mean, pch = 18, col = "blue", type = "b", lty = 2)
 ```
 
-```{r}
-silo <- read.csv("silo_monthly_1958_2019.csv")
-```
-
 Convert to correct format, add sample depth.
 
 ```{r}
-upslope_summary<- as.data.frame((upslope_summary))
-rownames(upslope_summary) <- upslope_summary$year
-upslope_summary[,1] <- NULL
-upslope_summary$samp.depth <- c(4,3,4,4,4,4,4,3,4,4,4,4,4,4,4,3,3,3,4,4,4,4,2,3,3,3,3,2,3,3,3,3,3,3,3,3,3,3,3,3,3,4,4,4,4,4,4,3,3,3,4,4,4,4,4,4,4,4,4)
-```
-
-
-```{r}
 dcc(upslope_summary, silo, .range(-1:12))
-```
-
-```{r}
-downslope_summary<- as.data.frame((downslope_summary))
-rownames(downslope_summary) <- downslope_summary$year
-downslope_summary[,1] <- NULL
-downslope_summary$samp.depth <- c(3,4,3,2,3,2,3,3,4,4,4,4,4,1,2,3,3,3,2,3,4,3,4,3,4,4,4,4,4,4,4,3,4,3,4,4,4,4,4,4,4,3,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,3,3)
 ```
 
 ```{r}
@@ -883,13 +709,11 @@ Rework gnip tool for this
 newsilo <- silo[37:744,]
 ```
 
-
 ```{r}
 climcorrs <- function(trees){
 corrs <- rep(NA, 10)
 for (m in 1:12){
 mon_silo <- subset(newsilo, month == m)
-mon_annual_silo <- mon_silo %>% group_by(year) %>% summarise(mean = mean(precip, na.rm = TRUE))
 test <- cor.test(mon_annual_silo[['mean']], trees)
 corrs[m] <- test$estimate
 }
@@ -900,13 +724,13 @@ return(corrs)
 ```{r}
 climcorrs(upslope_summary$mean)
 ```
+
 ```{r}
 gnipcorrs2 <- function(trees){
 corrs <- rep(NA, 10)
 for (m in 1:12){
 mon_gnip <- subset(gnip_outlier, month == m)
-mon_annual_gnip <- mon_gnip %>% group_by(year) %>% summarise(mean = mean(O18, na.rm = TRUE))
-test <- cor.test(mon_annual_gnip[['mean']], trees)
+test <- cor.test(mon_gnip[['O18']], trees)
 corrs[m] <- test$estimate
 }
 return(corrs)
@@ -914,22 +738,21 @@ return(corrs)
 ```
 
 ```{r}
-slope_compare <- upslope_summary[19:42,]
+gnip_group_corrs <- data.frame(row.names = c("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"))
 ```
 
 ```{r}
-help <- data.frame(row.names = c("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"))
+slope_compare <- downslope_summary[20:43,]
+next_compare <- downslope_summary[19:42,]
+gnip_group_corrs$down_prev <- gnipcorrs2(slope_compare$mean)
+gnip_group_corrs$down_next <- gnipcorrs2(next_compare$mean)
 ```
 
+Plot the gnip vs. isotopes:
 ```{r}
-help$up_next <- gnipcorrs2(slope_compare$mean)
+mon_gnip <- subset(gnip_outlier, month == 12)
+plot(slope_compare$mean, mon_gnip$O18)
 ```
-
-```{r}
-mon_gnip <- subset(gnip, month == 1)
-mon_annual_gnip <- mon_gnip %>% group_by(year) %>% summarise(mean = mean(O18, na.rm = TRUE))
-```
-
 
 Standardize groups before averaging
 
@@ -992,20 +815,7 @@ gnipcorrs2(slope_compare)
 climcorrs
 
 
-
-
-
-
-
-
-
-
-
-
-
-
 5. Standardize 18O
-
 
 ```{r}
 standardize_o18 <- function(num) {
@@ -1027,10 +837,6 @@ pheatmap(as.matrix(stand_o18), scale="none", cluster_rows = FALSE, cluster_cols 
 
 ```{r}
 stand_o18$date <- as.integer(rownames(stand_o18))
-```
-
-
-```{r}
 ggplot(stand_o18, aes(x=date)) + 
   geom_line(aes(y = X603), color = "darkred") + 
   geom_line(aes(y = X604), color="steelblue") +
@@ -1044,13 +850,7 @@ ggplot(stand_o18, aes(x=date)) +
   geom_line(aes(y = X619), color="chocolate")
 ```
 
-
-
 6. GNIP pearson correlations
-
-```{r}
-gnip
-```
 
 ```{r}
 compare_to_gnip <- tab[19:42,]
@@ -1071,9 +871,6 @@ return(corrs)
 
 ```{r}
 yr.to.yr.corrs <- data.frame(row.names = c("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"))
-```
-
-```{r}
 nextyr.corrs <- data.frame(row.names = c("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"))
 ```
 
@@ -1089,9 +886,6 @@ nextyr.corrs$X619 <- gnipcorrs("X619")
 
 ```{r}
 prysm_full$Date <- prysm_full$date
-```
-
-```{r}
 prysm_vs_gnip <- merge(prysm_full, gnip, by="Date")
 ```
 
@@ -1106,97 +900,7 @@ cor.test(prysm_vs_gnip$d18o, prysm_vs_gnip$O18)
 ```
 
 
-
-
-
-
-
-
-
-
-
 8. Carbon Suess effect correction
-
-
-
-
-
-
-
-
-9. Removing GNIP outliers
-
-```{r}
-gnip_outlier <- gnip
-```
-
-
-```{r}
-gnip_outlier$O18[gnip_outlier$O18 > 1] <- NA
-```
-
-```{r}
-gnip_group_corrs <- data.frame(row.names = c("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"))
-```
-
-
-```{r}
-slope_compare <- downslope_summary[20:43,]
-next_compare <- downslope_summary[19:42,]
-gnip_group_corrs$down_prev <- gnipcorrs2(slope_compare$mean)
-gnip_group_corrs$down_next <- gnipcorrs2(next_compare$mean)
-```
-
-
-```{r}
-gnipcorrs2 <- function(trees){
-corrs <- rep(NA, 10)
-for (m in 1:12){
-mon_gnip <- subset(gnip_outlier, month == m)
-test <- cor.test(mon_gnip[['O18']], trees)
-corrs[m] <- test$estimate
-}
-return(corrs)
-}
-```
-
-
-```{r}
-gnipcorrs2(slope_compare$mean)
-```
-
-```{r}
-gnipcorrs2(next_compare$mean)
-```
-
-I am pretty sure that gnipcorrs2 works right the way above (and the way I had it before). The plotting below can help assure that:
-
-
-
-```{r}
-mon_gnip <- subset(gnip_outlier, month == 12)
-```
-
-
-```{r}
-plot(slope_compare$mean, mon_gnip$O18)
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
