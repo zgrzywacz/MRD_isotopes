@@ -685,12 +685,7 @@ downslope_summary[,1] <- NULL
 downslope_summary$samp.depth <- c(3,4,3,2,3,2,3,3,4,4,4,4,4,1,2,3,3,3,2,3,4,3,4,3,4,4,4,4,4,4,4,3,4,3,4,4,4,4,4,4,4,3,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,3,3)
 ```
 
-```{r}
-plot(upslope_summary$year, upslope_summary$mean, type = "b", frame = FALSE, pch = 19, 
-     col = "red", xlab = "x", ylab = "y")
-# Add a second line
-lines(upslope_summary$year, downslope_summary$mean, pch = 18, col = "blue", type = "b", lty = 2)
-```
+
 
 Convert to correct format, add sample depth.
 
@@ -708,7 +703,7 @@ Rework gnip tool for this
 ```{r}
 newsilo <- silo[37:744,]
 ```
-
+Edit:
 ```{r}
 climcorrs <- function(trees){
 corrs <- rep(NA, 10)
@@ -750,8 +745,8 @@ gnip_group_corrs$down_next <- gnipcorrs2(next_compare$mean)
 
 Plot the gnip vs. isotopes:
 ```{r}
-mon_gnip <- subset(gnip_outlier, month == 12)
-plot(slope_compare$mean, mon_gnip$O18)
+mon_gnip <- subset(gnip_outlier, month == 2)
+plot(next_compare$mean, mon_gnip$O18)
 ```
 
 Standardize groups before averaging
@@ -899,8 +894,39 @@ ggplot(prysm_vs_gnip, aes(x=Date)) +
 cor.test(prysm_vs_gnip$d18o, prysm_vs_gnip$O18)
 ```
 
+Cluster analysis
 
-8. Carbon Suess effect correction
+```{r}
+newfill <- read.csv("filled_for_cluster_18o.csv")
+newfill <- scale(newfill)
+clusterset <- data.frame(t(newfill))
+clusterset <- clusterset[2:10,]
+```
+
+```{r}
+kmeans(clusterset, centers=4, nstart=10)
+```
+
+4,6,7,17
+3,5,9,12,19
+
+Try these new groupings (figure out where to put 11)
+
+
+
+
+
+Carbon Suess effect correction
+
+
+
+
+
+
+
+
+
+
 
 
 
