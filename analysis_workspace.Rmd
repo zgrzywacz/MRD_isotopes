@@ -912,6 +912,75 @@ kmeans(clusterset, centers=4, nstart=10)
 
 Try these new groupings (figure out where to put 11)
 
+```{r}
+group1_sites <- subset(tab, select=c("X603","X605","X609","X612","X619"))
+group2_sites <- subset(tab, select=c("X604","X606","X607","X617"))
+group1_raw <- raw %>% filter(Tree_ID == 603 | Tree_ID == 605 | Tree_ID == 609 |Tree_ID == 612 |Tree_ID == 619)
+group2_raw <- raw %>% filter(Tree_ID == 604 | Tree_ID == 606 |Tree_ID == 607 |Tree_ID == 617)
+```
+
+```{r}
+ggplot(data=group1_raw, aes(x=year, y=o18corr, group=as.factor(Tree_ID))) +
+  geom_line(aes(color=as.factor(Tree_ID)))+
+  geom_point(aes(color=as.factor(Tree_ID)))+
+  scale_color_brewer(palette="Spectral")
+```
+
+```{r}
+ggplot(data=group2_raw, aes(x=year, y=o18corr, group=as.factor(Tree_ID))) +
+  geom_line(aes(color=as.factor(Tree_ID)))+
+  geom_point(aes(color=as.factor(Tree_ID)))+
+  scale_color_brewer(palette="Spectral")
+```
+Note: samp depths are wrong, will not work with dcc
+```{r}
+group2_summary <- group2_raw %>% group_by(year) %>% summarise(mean = mean(o18corr, na.rm = TRUE))
+group1_summary <- group1_raw %>% group_by(year) %>% summarise(mean = mean(o18corr, na.rm = TRUE))
+group2_summary<- as.data.frame((group2_summary))
+rownames(group2_summary) <- group2_summary$year
+group2_summary[,1] <- NULL
+group2_summary$samp.depth <- c(4,3,4,4,4,4,4,3,4,4,4,4,4,4,4,3,3,3,4,4,4,4,2,3,3,3,3,2,3,3,3,3,3,3,3,3,3,3,3,3,3,4,4,4,4,4,4,3,3,3,4,4,4,4,4,4,4,4,4)
+group1_summary<- as.data.frame((group1_summary))
+rownames(group1_summary) <- group1_summary$year
+group1_summary[,1] <- NULL
+group1_summary$samp.depth <- c(3,4,3,2,3,2,3,3,4,4,4,4,4,1,2,3,3,3,2,3,4,3,4,3,4,4,4,4,4,4,4,3,4,3,4,4,4,4,4,4,4,3,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,3,3)
+```
+
+Plot groups against each other
+
+```{r}
+plot(rownames(group1_summary),group1_summary$mean,type="l",col="red")
+lines(rownames(group1_summary),group2_summary$mean,col="green")
+```
+
+
+corrs w/gnip
+
+```{r}
+new_group_corrs <- data.frame(row.names = c("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"))
+```
+
+```{r}
+g1slope_compare <- group1_summary[20:43,]
+g1next_compare <- group1_summary[19:42,]
+g2slope_compare <- group2_summary[20:43,]
+g2next_compare <- group2_summary[19:42,]
+new_group_corrs$g1_prev <- gnipcorrs2(g1slope_compare$mean)
+new_group_corrs$g1_next <- gnipcorrs2(g1next_compare$mean)
+new_group_corrs$g2_prev <- gnipcorrs2(g2slope_compare$mean)
+new_group_corrs$g2_next <- gnipcorrs2(g2next_compare$mean)
+```
+
+Plot the gnip vs. isotopes:
+```{r}
+mon_gnip <- subset(gnip_outlier, month == 2)
+plot(dnext_compare$mean, mon_gnip$O18)
+```
+
+
+
+
+
 
 
 
