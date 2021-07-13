@@ -25,6 +25,7 @@ library(pheatmap)
 library(treeclim)
 library(raster)
 library(dplR)
+library(scPDSI)
 ```
 
 
@@ -703,7 +704,7 @@ Rework gnip tool for this
 ```{r}
 newsilo <- silo[37:744,]
 ```
-Edit:
+This needs Edit:
 ```{r}
 climcorrs <- function(trees){
 corrs <- rep(NA, 10)
@@ -716,9 +717,6 @@ return(corrs)
 }
 ```
 
-```{r}
-climcorrs(upslope_summary$mean)
-```
 
 ```{r}
 gnipcorrs2 <- function(trees){
@@ -973,8 +971,12 @@ new_group_corrs$g2_next <- gnipcorrs2(g2next_compare$mean)
 
 Plot the gnip vs. isotopes:
 ```{r}
-mon_gnip <- subset(gnip_outlier, month == 2)
-plot(dnext_compare$mean, mon_gnip$O18)
+mon_gnip <- subset(gnip_outlier, month == 11)
+gnip_group_plotting <- data.frame(mon_gnip$O18, mon_gnip$year, g2next_compare$mean)
+colnames(gnip_group_plotting) <- c("O18","year","mean")
+ggplot(data=gnip_group_plotting, aes(x=O18, y=mean, color=year))+
+geom_point()+
+geom_text(aes(label=year),hjust=0.5, vjust=-0.5)
 ```
 
 
