@@ -902,7 +902,7 @@ clusterset <- clusterset[2:10,]
 ```
 
 ```{r}
-kmeans(clusterset, centers=4, nstart=10)
+kmeans(clusterset, centers=2, nstart=10)
 ```
 
 4,6,7,17
@@ -969,6 +969,21 @@ new_group_corrs$g2_prev <- gnipcorrs2(g2slope_compare$mean)
 new_group_corrs$g2_next <- gnipcorrs2(g2next_compare$mean)
 ```
 
+```{r}
+full_gnip_compare <- annual_summary[20:43,]
+next_gnip_compare <- annual_summary[19:42,]
+```
+
+
+```{r}
+gnipcorrs2(full_gnip_compare$mean)
+```
+
+```{r}
+gnipcorrs2(next_gnip_compare$mean)
+```
+
+
 Plot the gnip vs. isotopes:
 ```{r}
 mon_gnip <- subset(gnip_outlier, month == 11)
@@ -979,12 +994,69 @@ geom_point()+
 geom_text(aes(label=year),hjust=0.5, vjust=-0.5)
 ```
 
+VPD
+
+```{r}
+vpd <- read.csv("vpd_monthly_1959_2019.csv")
+vpd <- vpd[13:720,]
+```
+
+
+```{r}
+vpdcorrs <- function(trees){
+corrs <- rep(NA, 10)
+for (m in 1:12){
+mon_silo <- subset(vpd, month == m)
+test <- cor.test(mon_silo[['test']], trees)
+corrs[m] <- test$estimate
+}
+return(corrs)
+}
+```
+
+```{r}
+vpdcorrs(upslope_summary$mean)
+```
+
+```{r}
+vpdcorrs(downslope_summary$mean)
+```
 
 
 
 
 
+```{r}
+vpdcorrs(group1_summary$mean)
+```
 
+
+```{r}
+vpdcorrs(group2_summary$mean)
+```
+
+1960 isotopes with 1961 vpd
+
+```{r}
+vpd <- vpd[13:708,]
+group1_temp <- group1_summary[1:58,]
+group2_temp <- group2_summary[1:58,]
+ups_temp <- upslope_summary[1:58,]
+downs_temp <- downslope_summary[1:58,]
+vpdcorrs(group1_temp$mean)
+```
+
+```{r}
+vpdcorrs(group2_temp$mean)
+```
+
+```{r}
+vpdcorrs(ups_temp$mean)
+```
+
+```{r}
+vpdcorrs(downs_temp$mean)
+```
 
 
 Carbon Suess effect correction
