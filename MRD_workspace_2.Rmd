@@ -1,0 +1,145 @@
+---
+title: "MRD_workspace_2"
+author: "Zack Grzywacz"
+date: "July 15, 2021"
+output: html_document
+---
+
+```{r}
+library(lubridate)
+library(lattice)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(rasterVis)
+library(seas)
+library(s2dverification)
+library(reshape2)
+library(dplyr)
+library(Hmisc)
+library(ggplot2)
+library(viridis)
+library(ggExtra)
+library(grid)
+library(pheatmap)
+library(treeclim)
+library(raster)
+library(dplR)
+library(scPDSI)
+```
+
+
+```{r}
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+```
+
+```{r}
+raw <- read.csv("raw_isotopes.csv") # Raw isotope data
+raw$year <- substrRight(raw$sample_ID, 4)
+raw$year <- strtoi(raw$year)
+
+annual_summary <- raw %>% group_by(year) %>% summarise(mean = mean(o18corr, na.rm = TRUE)) # Combined Isotope data
+
+tab <- read.csv("tabulated_18o.csv") # Oxygen data tabulated
+rownames(tab) <- tab[,1]
+tab[,1] <- NULL
+
+tab2 <- read.csv("tabulated_13c.csv") # carbon data tabulated
+rownames(tab2) <- tab2[,1]
+tab2[,1] <- NULL
+
+gnip <- read.csv("CG_GNIP.csv")
+gnip$Date <- parse_date_time(gnip$Date, "mdy")
+gnip$month <- month(gnip$Date)
+gnip$year <- year(gnip$Date)
+for (i in c(1:288)){
+if (gnip$month[i] < 9){
+  gnip$seas.year[i] = (gnip$year[i] - 1)
+}
+else{
+  gnip$seas.year[i] = gnip$year[i]
+}
+}
+
+gnip_outlier <- gnip
+gnip_outlier$O18[gnip_outlier$O18 > 1] <- NA
+
+vpd <- read.csv("vpd_monthly_1959_2019.csv")
+vpd <- vpd[13:720,]
+
+clim <- read.csv("silo_monthly_1959_2019.csv")
+```
+
+Standardize 18O series
+
+```{r}
+std_18o <- scale(tab)
+```
+
+Corr matrix
+
+```{r}
+cor(std_18o, use = "complete.obs")
+```
+
+The same - duh.
+
+Groupings
+
+```{r}
+downslope_sites <- subset(std_18o, select=c("X603","X605","X612","X619"))
+upslope_sites <- subset(std_18o, select=c("X604","X607","X609","X611"))
+cluster_group1 <- subset(std_18o, select=c("X603","X605","X609","X612","X619"))
+cluster_group2 <- subset(std_18o, select=c("X604","X606","X607","X617"))
+downslope_summary <- data.frame(rowMeans(downslope_sites, na.rm=TRUE))
+colnames(downslope_summary) <- "mean"
+upslope_summary <- data.frame(rowMeans(upslope_sites, na.rm=TRUE))
+colnames(upslope_summary) <- "mean"
+group1_summary <- data.frame(rowMeans(cluster_group1, na.rm=TRUE))
+colnames(group1_summary) <- "mean"
+group2_summary <- data.frame(rowMeans(cluster_group2, na.rm=TRUE))
+colnames(group2_summary) <- "mean"
+```
+
+
+
+Make correlation function that corrs parameter plus lag
+Take all factors -> output plot/table?
+Or take one factor -> spit out data
+
+```{r}
+gnipcorrs2 <- function(trees){
+corrs <- rep(NA, 10)
+for (m in 1:12){
+mon_gnip <- subset(gnip_outlier, month == m)
+test <- cor.test(mon_gnip[['O18']], trees)
+corrs[m] <- test$estimate
+}
+return(corrs)
+}
+```
+
+
+Corr w/ GNIP, VPD, scPDSI (Both whole AND groupings)
+
+C Seuss correction
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
