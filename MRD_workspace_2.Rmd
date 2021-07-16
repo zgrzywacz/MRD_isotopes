@@ -120,6 +120,45 @@ return(corrs)
 }
 ```
 
+```{r}
+newclim <- clim[13:720,]
+```
+
+Change this slightly to allow for nextyr corrs as well
+```{r}
+o18_corrs <- function(df, trees){
+  output <- data.frame(Clim="", Month="", Corr="")
+  for (param in c(3:ncol(df))){
+    tempdf <- data.frame(Clim=colnames(df[param]), Month=c(1:12), Corr="")
+    for (m in 1:12){
+      corrs <- rep(NA, 10)
+      mon_sub <- subset(df, month == m)
+      test <- cor.test(mon_sub[[param]], trees)
+      tempdf$Corr[m] <- test$estimate
+    }
+  output <- rbind(output, tempdf)
+  }
+  return(output)
+}
+```
+
+
+```{r}
+o18_corrs(newclim, annual_summary$mean)
+```
+
+```{r}
+newdf <- o18_corrs(newclim, annual_summary$mean)
+```
+
+Make this plot work again
+
+Work this into it:
+```{r}
+gg <- ggplot(newdf, aes(x=Month, y=Clim, fill=Corr)) + geom_tile(color="white", size=0.1) + scale_fill_viridis(name="# Events") + coord_equal() + labs(x=NULL, y=NULL, title="Monthly Correlations")
+```
+
+
 
 Corr w/ GNIP, VPD, scPDSI (Both whole AND groupings)
 
