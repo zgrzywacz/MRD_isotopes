@@ -5,6 +5,7 @@ date: "July 15, 2021"
 output: html_document
 ---
 
+
 ```{r}
 library(lubridate)
 library(lattice)
@@ -105,20 +106,8 @@ colnames(group2_summary) <- "mean"
 
 
 Make correlation function that corrs parameter plus lag
-Take all factors -> output plot/table?
-Or take one factor -> spit out data
+Take all factors -> output plot/table
 
-```{r}
-gnipcorrs2 <- function(trees){
-corrs <- rep(NA, 10)
-for (m in 1:12){
-mon_gnip <- subset(gnip_outlier, month == m)
-test <- cor.test(mon_gnip[['O18']], trees)
-corrs[m] <- test$estimate
-}
-return(corrs)
-}
-```
 
 ```{r}
 newclim <- clim[13:720,]
