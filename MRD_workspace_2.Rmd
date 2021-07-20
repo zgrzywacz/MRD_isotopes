@@ -116,48 +116,80 @@ newclim <- clim[13:720,]
 Change this slightly to allow for nextyr corrs as well
 ```{r}
 o18_corrs <- function(df, trees){
+  newclim <- df[13:720,]
+  nextclim <- df[25:732,]
   output <- data.frame(Clim="", Month="", Corr="")
   for (param in c(3:ncol(df))){
-    tempdf <- data.frame(Clim=colnames(df[param]), Month=c(1:12), Corr="")
-    for (m in 1:12){
-      corrs <- rep(NA, 10)
-      mon_sub <- subset(df, month == m)
+    tempdf <- data.frame(Clim=colnames(df[param]), Month=c(6:12), Corr="")
+    tempdf2 <- data.frame(Clim=colnames(df[param]), Month=c(1:5), Corr="")
+    for (m in 6:12){
+      n = (m-5)
+      mon_sub <- subset(newclim, month == m)
       test <- cor.test(mon_sub[[param]], trees)
-      tempdf$Corr[m] <- test$estimate
+      tempdf$Corr[n] <- test$estimate
     }
-  output <- rbind(output, tempdf)
+    for (m in 1:5){
+      mon_sub <- subset(nextclim, month == m)
+      test <- cor.test(mon_sub[[param]], trees)
+      tempdf2$Corr[m] <- test$estimate
+    }
+  output <- rbind(output, tempdf, tempdf2)
   }
+  output <- output[-1,]
+  output$Corr <- as.numeric(output$Corr)
+  output$Month <- c("Jun","Jul","Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar","Apr","May")
   return(output)
 }
 ```
 
 
 ```{r}
-o18_corrs(newclim, annual_summary$mean)
+o18_corrs(clim, annual_summary$mean)
+```
+
+
+
+Figure out scPDSI
+
+Take this output and add it to clim data frame
+
+```{r}
+pdsi_output <- pdsi(clim$precip, clim$pet, start=1959, sc=TRUE)
 ```
 
 ```{r}
-newdf <- o18_corrs(newclim, annual_summary$mean)
+clim$pdsi <- pdsi_output$X
+clim$phdi <- pdsi_output$PHDI
+clim$weight.pdsi <- pdsi_output$WPLM
 ```
 
-Make this plot work again
+```{r}
+o18_corrs(clim, annual_summary$mean)
+```
 
-Work this into it:
+
+```{r}
+newdf <- o18_corrs(clim, annual_summary$mean)
+```
+
 ```{r}
 gg <- ggplot(newdf, aes(x=Month, y=Clim, fill=Corr)) + geom_tile(color="white", size=0.1) + scale_fill_viridis(name="# Events") + coord_equal() + labs(x=NULL, y=NULL, title="Monthly Correlations")
 ```
 
+```{r}
+gg
+```
 
+Figure out how to order months correctly
 
-Corr w/ GNIP, VPD, scPDSI (Both whole AND groupings)
+```{r}
+newdf <- o18_corrs(clim, group2_summary$mean)
+gg <- ggplot(newdf, aes(x=Month, y=Clim, fill=Corr)) + geom_tile(color="white", size=0.1) + scale_fill_viridis(name="# Events") + coord_equal() + labs(x=NULL, y=NULL, title="Monthly Correlations")
+gg
+```
+
 
 C Seuss correction
-
-
-
-
-
-
 
 
 
