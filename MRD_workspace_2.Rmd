@@ -86,6 +86,11 @@ cor(std_18o, use = "complete.obs")
 
 The same - duh.
 
+```{r}
+std_summary <- rowMeans(std_18o, na.rm=TRUE)
+```
+
+
 Groupings
 
 ```{r}
@@ -169,33 +174,43 @@ o18_corrs(clim, annual_summary$mean)
 
 
 ```{r}
-newdf <- o18_corrs(clim, annual_summary$mean)
-```
-
-```{r}
-gg <- ggplot(newdf, aes(x=Month, y=Clim, fill=Corr)) + geom_tile(color="white", size=0.1) + scale_fill_viridis(name="# Events") + coord_equal() + labs(x=NULL, y=NULL, title="Monthly Correlations")
-```
-
-```{r}
-gg
-```
-
-Figure out how to order months correctly
-
-```{r}
-newdf <- o18_corrs(clim, group2_summary$mean)
+newdf <- o18_corrs(clim, std_summary)
+newdf$Month <- factor(newdf$Month, levels=unique(newdf$Month))
 gg <- ggplot(newdf, aes(x=Month, y=Clim, fill=Corr)) + geom_tile(color="white", size=0.1) + scale_fill_viridis(name="# Events") + coord_equal() + labs(x=NULL, y=NULL, title="Monthly Correlations")
 gg
 ```
+
+Groupings:
+
+```{r}
+newdf <- o18_corrs(clim, downslope_summary$mean)
+newdf$Month <- factor(newdf$Month, levels=unique(newdf$Month))
+gg <- ggplot(newdf, aes(x=Month, y=Clim, fill=Corr)) + geom_tile(color="white", size=0.1) + scale_fill_viridis(name="# Events") + coord_equal() + labs(x=NULL, y=NULL, title="Downslope Monthly Correlations")
+gg
+```
+
+
+```{r}
+newdf <- o18_corrs(clim, upslope_summary$mean)
+newdf$Month <- factor(newdf$Month, levels=unique(newdf$Month))
+gg <- ggplot(newdf, aes(x=Month, y=Clim, fill=Corr)) + geom_tile(color="white", size=0.1) + scale_fill_viridis(name="# Events") + coord_equal() + labs(x=NULL, y=NULL, title="Upslope Monthly Correlations")
+gg
+```
+
 
 
 C Seuss correction
+Ask Amy - seems complicated
 
 
 
+```{r}
+cor.test(std_summary, as.numeric(names(std_summary)))
+```
 
-
-
+```{r}
+plot(clim$pdsi)
+```
 
 
 
