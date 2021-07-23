@@ -114,34 +114,33 @@ Make correlation function that corrs parameter plus lag
 Take all factors -> output plot/table
 
 
-```{r}
-newclim <- clim[13:720,]
-```
-
 Change this slightly to allow for nextyr corrs as well
 ```{r}
 o18_corrs <- function(df, trees){
   newclim <- df[13:720,]
   nextclim <- df[25:732,]
-  output <- data.frame(Clim="", Month="", Corr="")
+  output <- data.frame(Clim="", Month="", Corr="", p="")
   for (param in c(3:ncol(df))){
-    tempdf <- data.frame(Clim=colnames(df[param]), Month=c(6:12), Corr="")
-    tempdf2 <- data.frame(Clim=colnames(df[param]), Month=c(1:5), Corr="")
+    tempdf <- data.frame(Clim=colnames(df[param]), Month=c(6:12), Corr="", p="")
+    tempdf2 <- data.frame(Clim=colnames(df[param]), Month=c(1:5), Corr="", p="")
     for (m in 6:12){
       n = (m-5)
       mon_sub <- subset(newclim, month == m)
       test <- cor.test(mon_sub[[param]], trees)
       tempdf$Corr[n] <- test$estimate
+      tempdf$p[n] <- test$p.value
     }
     for (m in 1:5){
       mon_sub <- subset(nextclim, month == m)
       test <- cor.test(mon_sub[[param]], trees)
       tempdf2$Corr[m] <- test$estimate
+      tempdf2$p[m] <- test$p.value
     }
   output <- rbind(output, tempdf, tempdf2)
   }
   output <- output[-1,]
   output$Corr <- as.numeric(output$Corr)
+  output$p <- as.numeric(output$p)
   output$Month <- c("Jun","Jul","Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar","Apr","May")
   return(output)
 }
@@ -176,16 +175,17 @@ o18_corrs(clim, annual_summary$mean)
 ```{r}
 newdf <- o18_corrs(clim, std_summary)
 newdf$Month <- factor(newdf$Month, levels=unique(newdf$Month))
-gg <- ggplot(newdf, aes(x=Month, y=Clim, fill=Corr)) + geom_tile(color="white", size=0.1) + scale_fill_viridis(name="# Events") + coord_equal() + labs(x=NULL, y=NULL, title="Monthly Correlations")
+gg <- ggplot(newdf, aes(x=Month, y=Clim, fill=Corr)) + geom_tile(color="white", size=0.1) + scale_fill_viridis(name="# Events") + coord_equal() + labs(x=NULL, y=NULL, title="Monthly Correlations")+geom_point(data=newdf[newdf$p<0.05,])
 gg
 ```
+
 
 Groupings:
 
 ```{r}
 newdf <- o18_corrs(clim, downslope_summary$mean)
 newdf$Month <- factor(newdf$Month, levels=unique(newdf$Month))
-gg <- ggplot(newdf, aes(x=Month, y=Clim, fill=Corr)) + geom_tile(color="white", size=0.1) + scale_fill_viridis(name="# Events") + coord_equal() + labs(x=NULL, y=NULL, title="Downslope Monthly Correlations")
+gg <- ggplot(newdf, aes(x=Month, y=Clim, fill=Corr)) + geom_tile(color="white", size=0.1) + scale_fill_viridis(name="# Events") + coord_equal() + labs(x=NULL, y=NULL, title="Downslope Monthly Correlations")+geom_point(data=newdf[newdf$p<0.05,])
 gg
 ```
 
@@ -193,7 +193,7 @@ gg
 ```{r}
 newdf <- o18_corrs(clim, upslope_summary$mean)
 newdf$Month <- factor(newdf$Month, levels=unique(newdf$Month))
-gg <- ggplot(newdf, aes(x=Month, y=Clim, fill=Corr)) + geom_tile(color="white", size=0.1) + scale_fill_viridis(name="# Events") + coord_equal() + labs(x=NULL, y=NULL, title="Upslope Monthly Correlations")
+gg <- ggplot(newdf, aes(x=Month, y=Clim, fill=Corr)) + geom_tile(color="white", size=0.1) + scale_fill_viridis(name="# Events") + coord_equal() + labs(x=NULL, y=NULL, title="Upslope Monthly Correlations")+geom_point(data=newdf[newdf$p<0.05,])
 gg
 ```
 
@@ -201,9 +201,9 @@ gg
 Individual Trees:
 
 ```{r}
-newdf <- o18_corrs(clim, std_18o[,3])
+newdf <- o18_corrs(clim, std_18o[,10])
 newdf$Month <- factor(newdf$Month, levels=unique(newdf$Month))
-gg <- ggplot(newdf, aes(x=Month, y=Clim, fill=Corr)) + geom_tile(color="white", size=0.1) + scale_fill_viridis(name="# Events") + coord_equal() + labs(x=NULL, y=NULL, title="Monthly Correlations")
+gg <- ggplot(newdf, aes(x=Month, y=Clim, fill=Corr)) + geom_tile(color="white", size=0.1) + scale_fill_viridis(name="# Events") + coord_equal() + labs(x=NULL, y=NULL, title="619")+geom_point(data=newdf[newdf$p<0.05,])
 gg
 ```
 
