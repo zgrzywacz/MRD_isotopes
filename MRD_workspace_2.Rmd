@@ -246,8 +246,10 @@ c13_summary
 ```
 
 ```{r}
-plot(c13_summary)
+plot(names(c13_summary), c13_summary)
 ```
+
+
 
 ```{r}
 cor(new_c13, use="complete.obs")
@@ -291,7 +293,12 @@ c13_corrs <- function(df, trees){
 
 
 ```{r}
-c13_df <- c13_corrs(clim, c13_summary)
+clim_for_carbon <- clim[,-3]
+```
+
+
+```{r}
+c13_df <- c13_corrs(clim_for_carbon, c13_summary)
 c13_df$Month <- factor(c13_df$Month, levels=unique(c13_df$Month))
 gg <- ggplot(c13_df, aes(x=Month, y=Clim, fill=Corr)) + geom_tile(color="white", size=0.1) + scale_fill_viridis(name="# Events") + coord_equal() + labs(x=NULL, y=NULL, title="Carbon Monthly Correlations")+geom_point(data=c13_df[c13_df$p<0.05,])
 gg
@@ -302,9 +309,167 @@ High VPD = closed stomata = "internal concentration of CO2 will drop and there w
 I wonder why there is not a positive relationship with pdsi - drought should mean closed stomata
 "d13C is only an indicator of drought stress in seasonally dry climates, and that variation in irradiance and N concentration can have as large an affect on discrimination as water availability"
 Irradiance and temperature may be dominant in this environment, where moisture stress is not an issue
-Try irradiance - solar radiation on silo?
+A negative relationship with solar radiation doesn't make sense at first - should lead to higher photosynthesis and thus higher 13C values
+However, it isn't necessarily a negative relationship during the growing season - it's during the spring and fall
+One possibility - higher irradiance in the spring and fall = sunny, but cold. Shouldn't be much photosynthesis happening (?)
+It's also strange that temp and rad have near opposite relationships with carbon despite being positively related to each other
+
+```{r}
+monthtest <- subset(clim, month ==5)
+plot(monthtest$temp, monthtest$rad)
+```
+
+
 There is the possibility that this is not a very stressed area and the 13C signal will be difficult to interpret
 
 No need to mess too much with the Suess stuff - Using the exact method described in McCarroll and Loader will result in the same relationships, just different numbered values. POSSIBLY find a different dataset that extends all the way to 1960 so that the whole dataset can be used.
+
+
+
+
+
+Create yearly averages
+
+Combine all of the ERA data together into a single stack (AND CROP TO 1958 - 2013! Change this if needed)
+```{r}
+ERA_t2m_sub <- subset(ERA_t2m, 121:828)
+ERA_precip_sub <- subset(ERA_precip, 133:840)
+```
+
+
+
+New function
+subset raster brick to years (60-18, then 61-19)
+Extract All raster layers for a particular month (Jan 1960, 61, etc)
+Turn into array
+Correlate as if it's a time series with the o18 (see below?)
+
+Alternatively, extract just a growing season then correlate by year (using calc which doesn't seem to be working)
+
+```{r}
+datC <- brick("rasters/ERA5_t2m.gri")
+datC_curr <- subset(datC, 121:828)
+datC_next <- subset(datC, 133:840)
+
+month <- "03" # Year you want to subset
+
+sel_y <- names(datC_next)[substr(names(datC_next), 7, 8) %in% month] #Creates true/false field of rasters for that yr
+#use that index to subset the raster brick
+datY <- subset(datC_next, sel_y, value=T) #subsets the dataset of only those that are true
+tail(names(datY), 30)
+ar.datY <- as.array(datY)
+```
+
+```{r}
+datC <- brick("rasters/ERA5_t2m.gri")
+  datC_curr <- subset(datC, 121:828)
+  datC_next <- subset(datC, 133:840)
+  
+for (month in c("01","02","03","04","05","06","07","08","09","10","11","12")){
+sel_y <- names(datC_next)[substr(names(datC_next), 7, 8) %in% month] #Creates true/false field of rasters for that yr
+#use that index to subset the raster brick
+datY <- subset(datC_next, sel_y, value=T) #subsets the dataset of only those that are true
+tail(names(datY), 30)
+ar.datY <- as.array(datY)
+
+z <- apply(ar.datY, 1:2, rcorr, std_summary, type="pearson")
+corr = array(0, dim=c(360,720) )
+sig = array(0, dim=c(360,720) )
+for (x in 1:259200)
+{
+corr[x] <- z[[x]][[1]][2]
+sig[x] <- z[[x]][[3]][2]
+}
+
+l <- list(corr, sig)
+a <- do.call(rbind, l)
+library(abind)
+a <- abind(l, along=3)
+
+r <- brick(a, xmn=0.125, xmx=180.125, ymn=-89.875, ymx=0.125, crs=CRS("+proj=longlat +datum=WGS84"))
+writeRaster(r, paste0("temp_corr_test_", month))
+
+}
+```
+
+
+```{r}
+apply(ar.datY, 1:2, rcorr, std_summary, type="pearson")
+```
+
+This is in list form basically. The cells go like this
+
+1   5   9   13  17
+2   6   10  14  18
+3   7   11  15  19
+4   8   12  16  20
+
+```{r}
+z <- apply(ar.datY, 1:2, rcorr, std_summary, type="pearson")
+```
+
+correlation = z[[x]][[1]][2]
+significance = z[[x]][[3]][2]
+
+Up next: create corr and sig arrays
+
+Change (67,89) to new extent:
+
+corr = array(0, dim=c(360,720) )
+sig = array(0, dim=c(360,720) )
+```{r}
+corr = array(0, dim=c(18,20) )
+sig = array(0, dim=c(18,20) )
+```
+
+Change 5963 to number of cells in new extent (ensure routing is correct):
+for (x in 1:259200)
+Must transpose corr and sig to get right dimensions
+```{r}
+for (x in 1:360)
+{
+corr[x] <- z[[x]][[1]][2]
+sig[x] <- z[[x]][[3]][2]
+}
+```
+
+
+
+
+Make it the right structure(?)
+
+```{r}
+l <- list(corr, sig)
+a <- do.call(rbind, l)
+library(abind)
+a <- abind(l, along=3)
+a
+```
+
+Change this brick call to get correct resolution, extent, etc
+```{r}
+r <- brick(a, xmn=0.125, xmx=180.125, ymn=-89.875, ymx=0.125, crs=CRS("+proj=longlat +datum=WGS84"))
+r
+```
+0.125, 180.125, -89.875, 0.125  (xmin, xmax, ymin, ymax)
+```{r}
+plot(r)
+```
+
+Create raster of corrs:
+
+```{r}
+writeRaster(r, "o18_prcp_corr")
+```
+
+
+
+
+
+
+
+
+
+
 
 
