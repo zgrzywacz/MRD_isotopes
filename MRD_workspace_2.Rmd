@@ -369,7 +369,6 @@ for (month in c("01","02","03","04","05","06","07","08","09","10","11","12")){
 sel_y <- names(datC_next)[substr(names(datC_next), 7, 8) %in% month] #Creates true/false field of rasters for that yr
 #use that index to subset the raster brick
 datY <- subset(datC_next, sel_y, value=T) #subsets the dataset of only those that are true
-tail(names(datY), 30)
 ar.datY <- as.array(datY)
 
 z <- apply(ar.datY, 1:2, rcorr, std_summary, type="pearson")
