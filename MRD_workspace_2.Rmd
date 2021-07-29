@@ -117,18 +117,26 @@ Take all factors -> output plot/table
 Change this slightly to allow for nextyr corrs as well
 ```{r}
 o18_corrs <- function(df, trees){
+  prevclim <- df[1:708,]
   newclim <- df[13:720,]
   nextclim <- df[25:732,]
   output <- data.frame(Clim="", Month="", Corr="", p="")
   for (param in c(3:ncol(df))){
-    tempdf <- data.frame(Clim=colnames(df[param]), Month=c(6:12), Corr="", p="")
+    tempdf0 <- data.frame(Clim=colnames(df[param]), Month=c(11:12), Corr="", p="")
+    tempdf <- data.frame(Clim=colnames(df[param]), Month=c(1:12), Corr="", p="")
     tempdf2 <- data.frame(Clim=colnames(df[param]), Month=c(1:5), Corr="", p="")
-    for (m in 6:12){
-      n = (m-5)
+    for (m in 11:12){
+      n = (m-10)
+      mon_sub <- subset(prevclim, month == m)
+      test <- cor.test(mon_sub[[param]], trees)
+      tempdf0$Corr[n] <- test$estimate
+      tempdf0$p[n] <- test$p.value
+    }
+    for (m in 1:12){
       mon_sub <- subset(newclim, month == m)
       test <- cor.test(mon_sub[[param]], trees)
-      tempdf$Corr[n] <- test$estimate
-      tempdf$p[n] <- test$p.value
+      tempdf$Corr[m] <- test$estimate
+      tempdf$p[m] <- test$p.value
     }
     for (m in 1:5){
       mon_sub <- subset(nextclim, month == m)
@@ -136,12 +144,12 @@ o18_corrs <- function(df, trees){
       tempdf2$Corr[m] <- test$estimate
       tempdf2$p[m] <- test$p.value
     }
-  output <- rbind(output, tempdf, tempdf2)
+  output <- rbind(output, tempdf0, tempdf, tempdf2)
   }
   output <- output[-1,]
   output$Corr <- as.numeric(output$Corr)
   output$p <- as.numeric(output$p)
-  output$Month <- c("Jun","Jul","Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar","Apr","May")
+  output$Month <- c("P.Nov","P.Dec","P.Jan","P.Feb","P.Mar","P.Apr","P.May","Jun","Jul","Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar","Apr","May")
   return(output)
 }
 ```
@@ -163,8 +171,7 @@ pdsi_output <- pdsi(clim$precip, clim$pet, start=1959, sc=TRUE)
 
 ```{r}
 clim$pdsi <- pdsi_output$X
-clim$phdi <- pdsi_output$PHDI
-clim$weight.pdsi <- pdsi_output$WPLM
+clim = subset(clim, select = -c(pet) )
 ```
 
 ```{r}
@@ -195,6 +202,15 @@ newdf <- o18_corrs(clim, upslope_summary$mean)
 newdf$Month <- factor(newdf$Month, levels=unique(newdf$Month))
 gg <- ggplot(newdf, aes(x=Month, y=Clim, fill=Corr)) + geom_tile(color="white", size=0.1) + scale_fill_viridis(name="# Events") + coord_equal() + labs(x=NULL, y=NULL, title="Upslope Monthly Correlations")+geom_point(data=newdf[newdf$p<0.05,])
 gg
+```
+
+```{r}
+plot(clim$pdsi)
+```
+
+```{r}
+mon_test <- subset(clim, month==12)
+plot(mon_test[2:60,]$pdsi, std_summary)
 ```
 
 
@@ -262,18 +278,26 @@ cor.test(c13_summary, std_summary[21:59])
 
 ```{r}
 c13_corrs <- function(df, trees){
+  prevclim <- df[241:708,]
   newclim <- df[253:720,]
   nextclim <- df[265:732,]
   output <- data.frame(Clim="", Month="", Corr="", p="")
   for (param in c(3:ncol(df))){
-    tempdf <- data.frame(Clim=colnames(df[param]), Month=c(6:12), Corr="", p="")
+    tempdf0 <- data.frame(Clim=colnames(df[param]), Month=c(11:12), Corr="", p="")
+    tempdf <- data.frame(Clim=colnames(df[param]), Month=c(1:12), Corr="", p="")
     tempdf2 <- data.frame(Clim=colnames(df[param]), Month=c(1:5), Corr="", p="")
-    for (m in 6:12){
-      n = (m-5)
+    for (m in 11:12){
+      n = (m-10)
+      mon_sub <- subset(prevclim, month == m)
+      test <- cor.test(mon_sub[[param]], trees)
+      tempdf0$Corr[n] <- test$estimate
+      tempdf0$p[n] <- test$p.value
+    }
+    for (m in 1:12){
       mon_sub <- subset(newclim, month == m)
       test <- cor.test(mon_sub[[param]], trees)
-      tempdf$Corr[n] <- test$estimate
-      tempdf$p[n] <- test$p.value
+      tempdf$Corr[m] <- test$estimate
+      tempdf$p[m] <- test$p.value
     }
     for (m in 1:5){
       mon_sub <- subset(nextclim, month == m)
@@ -281,15 +305,16 @@ c13_corrs <- function(df, trees){
       tempdf2$Corr[m] <- test$estimate
       tempdf2$p[m] <- test$p.value
     }
-  output <- rbind(output, tempdf, tempdf2)
+  output <- rbind(output, tempdf0, tempdf, tempdf2)
   }
   output <- output[-1,]
   output$Corr <- as.numeric(output$Corr)
   output$p <- as.numeric(output$p)
-  output$Month <- c("Jun","Jul","Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar","Apr","May")
+  output$Month <- c("P.Nov","P.Dec","P.Jan","P.Feb","P.Mar","P.Apr","P.May","Jun","Jul","Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar","Apr","May")
   return(output)
 }
 ```
+
 
 
 ```{r}
@@ -315,8 +340,8 @@ One possibility - higher irradiance in the spring and fall = sunny, but cold. Sh
 It's also strange that temp and rad have near opposite relationships with carbon despite being positively related to each other
 
 ```{r}
-monthtest <- subset(clim, month ==5)
-plot(monthtest$temp, monthtest$rad)
+monthtest <- subset(clim, month ==1)
+plot(tab$X612, monthtest[3:61,]$gnip)
 ```
 
 
@@ -331,10 +356,6 @@ No need to mess too much with the Suess stuff - Using the exact method described
 Create yearly averages
 
 Combine all of the ERA data together into a single stack (AND CROP TO 1958 - 2013! Change this if needed)
-```{r}
-ERA_t2m_sub <- subset(ERA_t2m, 121:828)
-ERA_precip_sub <- subset(ERA_precip, 133:840)
-```
 
 
 
@@ -418,39 +439,6 @@ a <- abind(l, along=3)
 
 r <- brick(a, xmn=0.125, xmx=180.125, ymn=-89.875, ymx=0.125, crs=CRS("+proj=longlat +datum=WGS84"))
 writeRaster(r, paste0("precip_corr_test_next_", month))
-
-}
-```
-
-Do JUST for temp:
-
-```{r}
-datC <- brick("rasters/ERA5_temp.gri")
-  datC_curr <- subset(datC, 121:828)
-  datC_next <- subset(datC, 133:840)
-
-for (month in c("06","07","08","09","10","11","12")){
-sel_y <- names(datC_curr)[substr(names(datC_curr), 7, 8) %in% month] #Creates true/false field of rasters for that yr
-#use that index to subset the raster brick
-datY <- subset(datC_curr, sel_y, value=T) #subsets the dataset of only those that are true
-ar.datY <- as.array(datY)
-
-z <- apply(ar.datY, 1:2, rcorr, std_summary, type="pearson")
-corr = array(0, dim=c(360,720) )
-sig = array(0, dim=c(360,720) )
-for (x in 1:259200)
-{
-corr[x] <- z[[x]][[1]][2]
-sig[x] <- z[[x]][[3]][2]
-}
-
-l <- list(corr, sig)
-a <- do.call(rbind, l)
-library(abind)
-a <- abind(l, along=3)
-
-r <- brick(a, xmn=0.125, xmx=180.125, ymn=-89.875, ymx=0.125, crs=CRS("+proj=longlat +datum=WGS84"))
-writeRaster(r, paste0("temp_corr_test_curr", month))
 
 }
 ```
