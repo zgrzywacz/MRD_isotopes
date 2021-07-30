@@ -81,8 +81,24 @@ std_18o <- scale(tab)
 Corr matrix
 
 ```{r}
-cor(std_18o, use = "complete.obs")
+cors_O18 <- cor(std_18o, use = "complete.obs")
 ```
+
+Average interseries correlation:
+
+```{r}
+mean(cors_O18[cors_O18 != 1])
+```
+
+```{r}
+std_13c <- scale(tab2)
+cors_C13 <- cor(std_13c, use='complete.obs')
+```
+
+```{r}
+mean(cors_C13[cors_C13 != 1])
+```
+
 
 The same - duh.
 
