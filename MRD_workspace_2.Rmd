@@ -5,6 +5,11 @@ date: "July 15, 2021"
 output: html_document
 ---
 
+```{r}
+library(scPDSI)
+```
+
+
 
 ```{r}
 library(lubridate)
@@ -25,7 +30,6 @@ library(pheatmap)
 library(treeclim)
 library(raster)
 library(dplR)
-library(scPDSI)
 ```
 
 
@@ -241,6 +245,17 @@ gg
 
 ```{r}
 std_18o
+```
+
+```{r}
+DJF <- subset(clim, month == 12 | month == 1 | month == 2)
+DJF$seasyear <- ifelse(DJF$month>=12, DJF$year, (DJF$year-1))
+DJF_gnip <- group_by(DJF, seasyear) %>% summarise(mean=mean(gnip, na.rm=TRUE))
+```
+
+```{r}
+DJF_gnip_trim <- DJF_gnip[3:61,]
+cor.test(DJF_gnip_trim$mean, group2_summary$mean)
 ```
 
 
