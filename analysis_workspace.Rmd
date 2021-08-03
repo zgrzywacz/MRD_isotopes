@@ -70,7 +70,7 @@ else{
 gnip_outlier <- gnip
 gnip_outlier$O18[gnip_outlier$O18 > 1] <- NA
 
-silo <- read.csv("silo_monthly_1958_2019.csv")
+silo <- read.csv("silo_monthly_1959_2019.csv")
 ```
 
 **Removal of flyers**
