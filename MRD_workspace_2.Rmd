@@ -174,6 +174,9 @@ o18_corrs <- function(df, trees){
 }
 ```
 
+```{r}
+subset(clim, month == 1)
+```
 
 ```{r}
 o18_corrs(clim, annual_summary$mean)
@@ -268,20 +271,24 @@ Pre-industrial is ~ -6.4 (I think)
 Load in atmosphere data -> add pre-industrial -> subtract from tree ring 
 
 ```{r}
-testdf<- read.csv("monthly_flask_c13_mlo.csv")
-testdf <- testdf[c(1:2,9)]
-c13_atm <- testdf[9:512,]
-colnames(c13_atm) <- c("Yr","Mn","C13")
+testdf<- read.csv("monthly_dc13_atm.csv")
+testdf <- testdf[c(1,5)]
+c13_atm <- testdf[5:170,]
+colnames(c13_atm) <- c("Yr","C13")
 c13_atm$C13 <- as.numeric(c13_atm$C13)
-c13_atm[1,3] <- NA
+c13_atm$Yr <- c(1850:2015)
 ```
 
 ```{r}
-annual_c13_atm <- c13_atm %>% group_by(Yr) %>% summarise(c13 = mean(C13, na.rm=TRUE))
-annual_c13_atm$corrected <- (annual_c13_atm$c13 - 6.4)
-carbon_correction <- tab2[21:59,]
-split_annual_c13 <- annual_c13_atm[1:39,]
-new_c13 <- carbon_correction - split_annual_c13$corrected
+plot(c13_atm[110:166,]$Yr, c13_atm[110:166,]$C13)
+```
+
+
+```{r}
+c13_atm$corrected <- (c13_atm$C13 + 6.61)
+carbon_for_correction <- tab2[1:56,]
+split_annual_c13 <- c13_atm[111:166,]
+new_c13 <- carbon_for_correction - split_annual_c13$corrected
 new_c13
 ```
 
@@ -304,14 +311,14 @@ cor(new_c13, use="complete.obs")
 
 
 ```{r}
-cor.test(c13_summary, std_summary[21:59])
+cor.test(c13_summary, std_summary[1:56])
 ```
 
 ```{r}
 c13_corrs <- function(df, trees){
-  prevclim <- df[241:708,]
-  newclim <- df[253:720,]
-  nextclim <- df[265:732,]
+  prevclim <- df[1:672,]
+  newclim <- df[13:684,]
+  nextclim <- df[25:696,]
   output <- data.frame(Clim="", Month="", Corr="", p="")
   for (param in c(3:ncol(df))){
     tempdf0 <- data.frame(Clim=colnames(df[param]), Month=c(11:12), Corr="", p="")
