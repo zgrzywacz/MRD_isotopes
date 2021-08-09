@@ -5,11 +5,6 @@ date: "July 15, 2021"
 output: html_document
 ---
 
-```{r}
-library(scPDSI)
-```
-
-
 
 ```{r}
 library(lubridate)
@@ -30,6 +25,8 @@ library(pheatmap)
 library(treeclim)
 library(raster)
 library(dplR)
+library(scPDSI)
+library(tidyr)
 ```
 
 
@@ -109,6 +106,33 @@ The same - duh.
 ```{r}
 std_summary <- rowMeans(std_18o, na.rm=TRUE)
 ```
+
+Compare MRD station to SILO
+
+```{r}
+MRDprecip <- read.csv("MRD_station_precip.csv")
+MRDprecip <- MRDprecip[,3:5]
+colnames(MRDprecip)[3] <- "Precip"
+MRDtemp <- read.csv("MRD_station_temp.csv")
+MRDtemp <- MRDtemp[,3:5]
+colnames(MRDtemp)[3] <- "Temp"
+MRDrad <- read.csv("MRD_station_rad.csv")
+MRDrad <- MRDrad[,3:5]
+colnames(MRDrad)[3] <- "Rad"
+MRDprecip <- complete(MRDprecip, expand(MRDprecip, Year, Month))
+MRDtemp <- complete(MRDtemp, expand(MRDtemp, Year, Month))
+MRDrad <- complete(MRDrad, expand(MRDrad, Year, Month))
+```
+
+```{r}
+plot(MRDprecip[1:276,]$Precip, clim[457:732,]$precip)
+plot(MRDtemp[1:288,]$Temp, clim[445:732,]$temp)
+plot(MRDrad[1:360,]$Rad, clim[373:732,]$rad)
+```
+
+
+
+
 
 
 Groupings
