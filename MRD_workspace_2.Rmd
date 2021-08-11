@@ -307,12 +307,21 @@ c13_atm$Yr <- c(1850:2015)
 plot(c13_atm[110:166,]$Yr, c13_atm[110:166,]$C13)
 ```
 
+```{r}
+baringhead <- read.csv("monthly_flask_c13_nzd.csv")
+baringhead <- baringhead[5:432,c(1,8)]
+BH_record <- baringhead %>% group_by(Yr) %>% summarise(mean = mean(C13..filled))
+BH_correction <- mean(c13_atm[136:166,]$C13 - BH_record[1:31,]$mean)
+c13_atm$BH_shift <- c13_atm$C13 - BH_correction
+c13_atm[136:170,]$BH_shift <- BH_record[1:35,]$mean
+```
+
+
 
 ```{r}
-c13_atm$corrected <- (c13_atm$C13 + 6.61)
-carbon_for_correction <- tab2[1:56,]
-split_annual_c13 <- c13_atm[111:166,]
-new_c13 <- carbon_for_correction - split_annual_c13$corrected
+c13_atm$corrected <- (c13_atm$BH_shift + 6.51)
+split_annual_c13 <- c13_atm[111:170,]
+new_c13 <- tab2 - split_annual_c13$corrected
 new_c13
 ```
 
@@ -335,14 +344,14 @@ cor(new_c13, use="complete.obs")
 
 
 ```{r}
-cor.test(c13_summary, std_summary[1:56])
+cor.test(c13_summary, std_summary[1:59])
 ```
 
 ```{r}
 c13_corrs <- function(df, trees){
-  prevclim <- df[1:672,]
-  newclim <- df[13:684,]
-  nextclim <- df[25:696,]
+  prevclim <- df[1:708,]
+  newclim <- df[13:720,]
+  nextclim <- df[25:732,]
   output <- data.frame(Clim="", Month="", Corr="", p="")
   for (param in c(3:ncol(df))){
     tempdf0 <- data.frame(Clim=colnames(df[param]), Month=c(11:12), Corr="", p="")
@@ -390,6 +399,8 @@ c13_df$Month <- factor(c13_df$Month, levels=unique(c13_df$Month))
 gg <- ggplot(c13_df, aes(x=Month, y=Clim, fill=Corr)) + geom_tile(color="white", size=0.1) + scale_fill_viridis(name="# Events") + coord_equal() + labs(x=NULL, y=NULL, title="Carbon Monthly Correlations")+geom_point(data=c13_df[c13_df$p<0.05,])
 gg
 ```
+Update after using BH: Not much left for relationships....
+
 
 Relationship with VPD makes perfect sense
 High VPD = closed stomata = "internal concentration of CO2 will drop and there will be less carboxylation discrimination against 13C, leading to higher d13C values"
@@ -411,6 +422,40 @@ There is the possibility that this is not a very stressed area and the 13C signa
 
 No need to mess too much with the Suess stuff - Using the exact method described in McCarroll and Loader will result in the same relationships, just different numbered values. POSSIBLY find a different dataset that extends all the way to 1960 so that the whole dataset can be used.
 
+Treeclim testing
+
+```{r}
+clim_for_treeclim <- clim[,c(1,2,4,5)]
+```
+
+```{r}
+annual_summary <- as.data.frame(annual_summary)
+rownames(annual_summary) <- (annual_summary$year + 1)
+annual_summary[,1] <- NULL
+annual_summary$samp.depth <- c(8,8,8,6,8,7,8,7,9,9,9,9,9,6,7,7,7,7,7,8,9,9,8,8,9,9,9,7,9,9,9,8,9,8,9,9,9,8,9,8,9,9,10,10,10,10,10,9,9,9,10,9,10,10,10,10,10,9,9)
+```
+
+```{r}
+annual_summary$mean <- std_summary
+```
+
+
+```{r}
+dcc(annual_summary, clim_for_treeclim, .range(-1:12))
+```
+
+Rad shows decent relationships in prev aug, prev dec, curr jun.
+
+
+```{r}
+sc1 <- seascorr(annual_summary, clim_for_treeclim, primary = "precip", secondary = "temp")
+sc2 <- seascorr(annual_summary, clim_for_treeclim, primary = "temp", secondary = "precip")
+plot(sc1)
+plot(sc2)
+```
+Growing season/late growing season precip appears significant
+
+Previous year temp appears significant as well?
 
 
 
