@@ -71,7 +71,20 @@ vpd <- read.csv("vpd_monthly_1959_2019.csv")
 vpd <- vpd[13:720,]
 
 clim <- read.csv("silo_monthly_1959_2019.csv")
+
+prysm <- read.csv("prysm_full.csv")
+
+echam5 <- read.csv("echam5wiso_MRD.csv")
 ```
+
+
+```{r}
+clim$prysm <- as.numeric(NA)
+clim[1:660,]$prysm <- prysm[13:672,]$d18o
+clim$echam5 <- as.numeric(NA)
+clim[1:660,]$echam5 <- echam5[13:672,]$d18oP
+```
+
 
 Standardize 18O series
 
@@ -130,9 +143,85 @@ plot(MRDtemp[1:288,]$Temp, clim[445:732,]$temp)
 plot(MRDrad[1:360,]$Rad, clim[373:732,]$rad)
 ```
 
+```{r}
+Precip_compare <- data.frame(station = MRDprecip[1:276,]$Precip, silo = clim[457:732,]$precip)
+Temp_compare <- data.frame(station = MRDtemp[1:288,]$Temp, silo = clim[445:732,]$temp)
+Rad_compare <- data.frame(station = MRDrad[1:360,]$Rad, silo = clim[373:732,]$rad)
+```
+
+CHANGE PRECIP to mm total or mm/day (figure hour how I did mm/day the first time)
+Repeat this plot for temp and rad
+
+```{r}
+ggplot(Precip_compare, aes(station, silo))+
+  geom_point(shape=23, color="blue")+
+  xlab("MRD Station Precipitation")+
+  ylab("SILO Precipitation")
+```
+
+
+Station data follows closely. BUT is there a significant change pre-199x (whenever station comes in)
+
+rad - 1990
+temp - 1996
+precip - 1997
+
+```{r}
+plot(clim$year, clim$precip)
+```
+ Seasonal spread appears to be slighlty higher post-1997. Investigate further:
+ 
+```{r}
+plot(subset(clim, month == 2)$year, subset(clim, month == 12)$precip)
+```
+
+Some months do appear to have increased spread after 1997. As in, year-to-year changes have more variability, and as a result there also appears to be more intra-year spread when all points are plotted. However, this could also be the result of a slight positive trend, which may or may not have been captured by the pre-1997 version of the model
+ 
+ 
+```{r}
+plot(clim$year, clim$temp)
+```
+ Seems fine to me
+ 
+ 
+```{r}
+plot(clim$year, clim$rad)
+```
+ Looks fine to me.
+
+
+Climograph from MRD station data:
+
+```{r}
+ggdf <- data.frame(Month = MRDtemp$Month )
+ggdf$Month <- month.abb
+ggdf$Month <- factor(ggdf$Month, levels = month.abb)
+ggdf$meanT <- as.numeric(MRDtemp$Temp)
+ggdf$prec_mm <- as.numeric(NA)
+ggdf[13:312,]$prec_mm <- MRDprecip$Precip
+
+ggdf <- ggdf %>% group_by(Month) %>% summarise(meanT = mean(meanT, na.rm=TRUE), prec_mm = mean(prec_mm, na.rm=TRUE))
+```
 
 
 
+
+
+```{r}
+climograph <- ggplot(data = ggdf, mapping = aes(x = Month, y = prec_mm, group = 1)) + 
+  geom_bar(stat = "identity", color="#404788FF", fill="#404788FF", width = 0.5) + 
+  geom_line(aes(y = meanT*30, group=1), color="#3CBB75FF", size=1.5) + # Scale data to match desired scale
+  scale_y_continuous("Precipitation [mm]", 
+                     sec.axis = sec_axis(~ . /30, name = "Temperature [°C]") # Reverse transformation to match data
+  ) +
+   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+          panel.background = element_blank(), axis.line = element_line(colour = "black"))
+```
+
+
+```{r}
+climograph
+```
 
 
 Groupings
@@ -218,7 +307,6 @@ pdsi_output <- pdsi(clim$precip, clim$pet, start=1959, sc=TRUE)
 
 ```{r}
 clim$pdsi <- pdsi_output$X
-clim = subset(clim, select = -c(pet) )
 ```
 
 ```{r}
@@ -294,6 +382,7 @@ Pre-industrial is ~ -6.4 (I think)
 
 Load in atmosphere data -> add pre-industrial -> subtract from tree ring 
 
+
 ```{r}
 testdf<- read.csv("monthly_dc13_atm.csv")
 testdf <- testdf[c(1,5)]
@@ -335,6 +424,32 @@ c13_summary
 ```{r}
 plot(names(c13_summary), c13_summary)
 ```
+Compare to uncorrected: 
+
+```{r}
+plot(names(rowMeans(tab2)), rowMeans(tab2[,-4], na.rm=TRUE))
+```
+
+While 1980ish is the period where a lot of different measurements come on, it appears that the jump is introduced by the tree rings, not the suess correction
+
+
+Plotting Graven vs. Uncorrected Raw vs. Suess Corrected
+
+```{r}
+plot(c(1960:2018), rowMeans(scale(tab2[-4]), na.rm=TRUE), type="l",col="red")
+lines(c(1960:2018), c13_summary, col="blue")
+lines(c(1960:2018), scale(split_annual_c13[1:59,]$BH_shift), col="green")
+```
+
+Red = RAW uncorrected (except 606)
+Blue = Suess-corrected
+Green = Graven/BH record
+
+Clearly the weird jump is introduced by the trees, not the atmospheric record
+
+
+
+
 
 
 
@@ -389,7 +504,7 @@ c13_corrs <- function(df, trees){
 
 
 ```{r}
-clim_for_carbon <- clim[,-3]
+clim_for_carbon <- clim[,c(-3,-8,-9)]
 ```
 
 
@@ -453,9 +568,35 @@ sc2 <- seascorr(annual_summary, clim_for_treeclim, primary = "temp", secondary =
 plot(sc1)
 plot(sc2)
 ```
-Growing season/late growing season precip appears significant
+Growing season/late growing season precip appears significant - but in the wrong direction
 
 Previous year temp appears significant as well?
+
+Explanation:
+Positive relationship with prev spring temp could mean early summers - which means an early growing season - leading trees to take in more growing season 18O which is more enriched. Negative relationship in fall - neglgible but could still be season extension snafu? If it's warmer and trees are still recording O, but the signal is depleted somehow? This could mean that being warmer at the site doesn't necessarily mean it's warmer at the source.
+
+Positive with late summer/fall precip. Definitely odd. But precip at the site may not be very influential anyway (except as a weak proxy for RH). More fall precip could mean winter came early, thus the trees stopped recording earlier. 
+
+Both of these explanations mean that trees take signal from local climate as to when to start recording/stop recording 18O. This is predicated upon the assumption that 18O is only recorded during the growing season. A SOURCE WATER change could also be very influential here.
+
+Questions: Why do relationships get so much stronger for partial corrs than they are for dcc? 
+Is there a source region seasonal pattern that could cause this relationship when the season is extended in either direction? (As far as SAM goes, there does not appear to be a consistent seasonal trend)
+DO these trees record just growing season? I think so - because if not, why is January the significant GNIP month?
+
+Try with VPD (RH) and PET just to try it
+
+```{r}
+clim_for_treeclim2 <- clim[,c(1,2,5,6)]
+clim_for_treeclim3 <- clim[,c(1,2,5,7)]
+plot(seascorr(annual_summary, clim_for_treeclim2, primary = "vpd", secondary = "temp"))
+plot(seascorr(annual_summary, clim_for_treeclim2, primary = "temp", secondary = "vpd"))
+plot(seascorr(annual_summary, clim_for_treeclim3, primary = "pet", secondary = "temp"))
+plot(seascorr(annual_summary, clim_for_treeclim3, primary = "temp", secondary = "pet"))
+```
+
+VPD and PET follow very similar patterns - strong positive correlations in Spring/early Summer
+Would line up with temp trends in precip/temp partial corrs, but temp looks weaker here. Could this be due to the same seasonal extension I predicted before?
+Although it appears I still need more info on how these partial corrs work. I'm unsure what the primary/secondary designation means exactly
 
 
 
