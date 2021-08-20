@@ -144,7 +144,25 @@ plot(MRDrad[1:360,]$Rad, clim[373:732,]$rad)
 ```
 
 ```{r}
-Precip_compare <- data.frame(station = MRDprecip[1:276,]$Precip, silo = clim[457:732,]$precip)
+Precip_compare <- data.frame(year=clim[457:732,]$year, month=clim[457:732,]$month, station = MRDprecip[1:276,]$Precip, silo = clim[457:732,]$precip)
+Precip_compare$monthSilo <- as.numeric(NA)
+for (i in 1:276){
+  if (Precip_compare[i,2]%in% c(1,3,5,7,8,10,12) == TRUE ){
+    Precip_compare[i,5] <- Precip_compare[i,4]*31
+  }
+  else if (Precip_compare[i,2]%in% c(4,6,9,11) == TRUE ){
+    Precip_compare[i,5] <- Precip_compare[i,4]*30
+  }
+  else{
+    Precip_compare[i,5] <- Precip_compare[i,4]*28
+  }
+}
+```
+
+
+
+
+```{r}
 Temp_compare <- data.frame(station = MRDtemp[1:288,]$Temp, silo = clim[445:732,]$temp)
 Rad_compare <- data.frame(station = MRDrad[1:360,]$Rad, silo = clim[373:732,]$rad)
 ```
@@ -153,7 +171,7 @@ CHANGE PRECIP to mm total or mm/day (figure hour how I did mm/day the first time
 Repeat this plot for temp and rad
 
 ```{r}
-ggplot(Precip_compare, aes(station, silo))+
+ggplot(Precip_compare, aes(station, monthSilo))+
   geom_point(shape=23, color="blue")+
   xlab("MRD Station Precipitation")+
   ylab("SILO Precipitation")
@@ -167,8 +185,14 @@ temp - 1996
 precip - 1997
 
 ```{r}
-plot(clim$year, clim$precip)
+plot(clim$precip, type="l")
 ```
+ 
+```{r}
+plot(MRDprecip$Precip, type="l")
+```
+ 
+ 
  Seasonal spread appears to be slighlty higher post-1997. Investigate further:
  
 ```{r}
@@ -179,7 +203,7 @@ Some months do appear to have increased spread after 1997. As in, year-to-year c
  
  
 ```{r}
-plot(clim$year, clim$temp)
+plot(MRDtemp$Temp, type="l")
 ```
  Seems fine to me
  
@@ -501,10 +525,13 @@ c13_corrs <- function(df, trees){
 }
 ```
 
+```{r}
+plot(clim$temp, type="l")
+```
 
 
 ```{r}
-clim_for_carbon <- clim[,c(-3,-8,-9)]
+clim_for_carbon <- clim[,c(-3,-9,-10)]
 ```
 
 
@@ -597,6 +624,19 @@ plot(seascorr(annual_summary, clim_for_treeclim3, primary = "temp", secondary = 
 VPD and PET follow very similar patterns - strong positive correlations in Spring/early Summer
 Would line up with temp trends in precip/temp partial corrs, but temp looks weaker here. Could this be due to the same seasonal extension I predicted before?
 Although it appears I still need more info on how these partial corrs work. I'm unsure what the primary/secondary designation means exactly
+
+TRIM SILO TO 90ish
+
+
+
+
+
+
+
+
+
+
+
 
 
 
