@@ -640,7 +640,6 @@ TRIM SILO TO 90ish
 
 
 
-
 Create yearly averages
 
 Combine all of the ERA data together into a single stack (AND CROP TO 1958 - 2013! Change this if needed)
