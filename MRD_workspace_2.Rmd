@@ -85,6 +85,15 @@ clim$echam5 <- as.numeric(NA)
 clim[1:660,]$echam5 <- echam5[13:672,]$d18oP
 ```
 
+Visualize 18O series
+
+```{r}
+raw$year <- as.factor(raw$year)
+ggplot(raw, aes(x=year, y=o18corr)) + 
+  geom_boxplot(fill='#E69F00', color='black')
+```
+
+
 
 Standardize 18O series
 
@@ -330,11 +339,20 @@ pdsi_output <- pdsi(clim$precip, clim$pet, start=1959, sc=TRUE)
 ```
 
 ```{r}
+pdsi_output
+```
+
+
+```{r}
 clim$pdsi <- pdsi_output$X
 ```
 
 ```{r}
 o18_corrs(clim, annual_summary$mean)
+```
+
+```{r}
+clim <- clim[,c(-10)]
 ```
 
 
@@ -366,6 +384,7 @@ gg
 ```{r}
 plot(clim$pdsi)
 ```
+
 
 ```{r}
 mon_test <- subset(clim, month==12)
@@ -531,7 +550,7 @@ plot(clim$temp, type="l")
 
 
 ```{r}
-clim_for_carbon <- clim[,c(-3,-9,-10)]
+clim_for_carbon <- clim[,c(-3,-10,-11)]
 ```
 
 
@@ -627,9 +646,207 @@ Although it appears I still need more info on how these partial corrs work. I'm 
 
 TRIM SILO TO 90ish
 
+MRD series:
+
+```{r}
+MRD <- read.csv("mrd.txt", sep=" ")
+```
+
+```{r}
+rwd_corrs <- function(df, trees){
+  prevclim <- df[1:708,]
+  newclim <- df[13:720,]
+  nextclim <- df[25:732,]
+  output <- data.frame(Clim="", Month="", Corr="", p="")
+  for (param in c(3:ncol(df))){
+    tempdf0 <- data.frame(Clim=colnames(df[param]), Month=c(11:12), Corr="", p="")
+    tempdf <- data.frame(Clim=colnames(df[param]), Month=c(1:12), Corr="", p="")
+    tempdf2 <- data.frame(Clim=colnames(df[param]), Month=c(1:5), Corr="", p="")
+    for (m in 11:12){
+      n = (m-10)
+      mon_sub <- subset(prevclim, month == m)
+      test <- cor.test(mon_sub[[param]], trees)
+      tempdf0$Corr[n] <- test$estimate
+      tempdf0$p[n] <- test$p.value
+    }
+    for (m in 1:12){
+      mon_sub <- subset(newclim, month == m)
+      test <- cor.test(mon_sub[[param]], trees)
+      tempdf$Corr[m] <- test$estimate
+      tempdf$p[m] <- test$p.value
+    }
+    for (m in 1:5){
+      mon_sub <- subset(nextclim, month == m)
+      test <- cor.test(mon_sub[[param]], trees)
+      tempdf2$Corr[m] <- test$estimate
+      tempdf2$p[m] <- test$p.value
+    }
+  output <- rbind(output, tempdf0, tempdf, tempdf2)
+  }
+  output <- output[-1,]
+  output$Corr <- as.numeric(output$Corr)
+  output$p <- as.numeric(output$p)
+  output$Month <- c("P.Nov","P.Dec","P.Jan","P.Feb","P.Mar","P.Apr","P.May","Jun","Jul","Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar","Apr","May")
+  return(output)
+}
+```
+
+```{r}
+trimMRD <- MRD[2400:2458,]
+```
+
+```{r}
+rwd_corrs(clim, trimMRD$mrdstd)
+```
+
+```{r}
+mrd_df <- rwd_corrs(clim, trimMRD$mrdstd)
+mrd_df$Month <- factor(mrd_df$Month, levels=unique(mrd_df$Month))
+gg <- ggplot(mrd_df, aes(x=Month, y=Clim, fill=Corr)) + geom_tile(color="white", size=0.1) + scale_fill_viridis(name="# Events") + coord_equal() + labs(x=NULL, y=NULL, title="MRD Ring Width Monthly Correlations")+geom_point(data=mrd_df[mrd_df$p<0.05,])
+gg
+```
+
+```{r}
+dccMRD <- trimMRD
+rownames(dccMRD) <- (as.numeric(rownames(trimMRD))+1)
+dcc(dccMRD, clim_for_treeclim, .range(-1:12))
+```
+
+```{r}
+sc1 <- seascorr(dccMRD, clim_for_treeclim, primary = "precip", secondary = "temp")
+sc2 <- seascorr(dccMRD, clim_for_treeclim, primary = "temp", secondary = "precip")
+plot(sc1)
+plot(sc2)
+```
 
 
+Fine-tuning: Does GNIP CG reflect nearby GNIP stations?
 
+
+```{r}
+gnip_sites <- read.csv("other_gnip_sites.csv")
+```
+
+```{r}
+plot(clim[217:600,]$gnip, gnip_sites$nz)
+plot(clim[217:600,]$gnip, gnip_sites$margate)
+cor.test(clim[217:600,]$gnip, gnip_sites$nz)
+```
+
+There is a bit of variability, but decent correlation with Invercargill site. Margate is too few data points to make anything of. Values are different, but there are different moisture sources, which makes that make sense.
+
+
+Trying with MEDIAN:
+
+```{r}
+med_summary = apply(tab, 1, median, na.rm=T)
+med_c_summary = apply(new_c13[,-4], 1, median, na.rm=T)
+```
+
+```{r}
+newdf <- o18_corrs(clim, med_summary)
+newdf$Month <- factor(newdf$Month, levels=unique(newdf$Month))
+gg <- ggplot(newdf, aes(x=Month, y=Clim, fill=Corr)) + geom_tile(color="white", size=0.1) + scale_fill_viridis(name="# Events") + coord_equal() + labs(x=NULL, y=NULL, title="Monthly Correlations")+geom_point(data=newdf[newdf$p<0.05,])
+gg
+```
+
+```{r}
+c13_df <- c13_corrs(clim_for_carbon, med_c_summary)
+c13_df$Month <- factor(c13_df$Month, levels=unique(c13_df$Month))
+gg <- ggplot(c13_df, aes(x=Month, y=Clim, fill=Corr)) + geom_tile(color="white", size=0.1) + scale_fill_viridis(name="# Events") + coord_equal() + labs(x=NULL, y=NULL, title="Carbon Monthly Correlations")+geom_point(data=c13_df[c13_df$p<0.05,])
+gg
+```
+
+```{r}
+annual_summary$mean <- med_summary
+```
+
+
+```{r}
+dcc(annual_summary, clim_for_treeclim, .range(-1:12))
+```
+
+```{r}
+sc1 <- seascorr(annual_summary, clim_for_treeclim, primary = "precip", secondary = "temp")
+sc2 <- seascorr(annual_summary, clim_for_treeclim, primary = "temp", secondary = "precip")
+plot(sc1)
+plot(sc2)
+```
+
+
+Creating DJF Corrs (change season as needed)
+
+
+This doesn't work, we can make it work?
+```{r}
+gs_corrs <- function(df, trees){
+  prevclim <- df[1:708,]
+  newclim <- df[13:720,]
+  nextclim <- df[25:732,]
+  output <- data.frame(Clim="", Month="", Corr="", p="")
+  for (param in c(3:ncol(df))){
+    tempdf0 <- data.frame(Clim=colnames(df[param]), Month=c(11:12), Corr="", p="")
+    tempdf <- data.frame(Clim=colnames(df[param]), Month=c(1:12), Corr="", p="")
+    tempdf2 <- data.frame(Clim=colnames(df[param]), Month=c(1:5), Corr="", p="")
+    tempdf3 <- data.frame(Clim=colnames(df[param]), Month=c(13), Corr="", p="")
+    for (m in 11:12){
+      n = (m-10)
+      mon_sub <- subset(prevclim, month == m)
+      test <- cor.test(mon_sub[[param]], trees)
+      tempdf0$Corr[n] <- test$estimate
+      tempdf0$p[n] <- test$p.value
+    }
+    for (m in 1:12){
+      mon_sub <- subset(newclim, month == m)
+      test <- cor.test(mon_sub[[param]], trees)
+      tempdf$Corr[m] <- test$estimate
+      tempdf$p[m] <- test$p.value
+    }
+    for (m in 1:5){
+      mon_sub <- subset(nextclim, month == m)
+      test <- cor.test(mon_sub[[param]], trees)
+      tempdf2$Corr[m] <- test$estimate
+      tempdf2$p[m] <- test$p.value
+    }
+    dec_sub <- subset(newclim, month == 12)
+    dec_sub$year <- (dec_sub$year + 1)
+    djf_sub <- rbind(dec_sub, subset(nextclim, month == c(1,2)))
+    djf_mean <- djf_sub %>% group_by(year)
+    djf_sum <- summarise(djf_mean, mean = mean(as.formula(colnames(df[param])), na.rm=TRUE))
+    djf_test <- cor.test(djf_sum$mean, trees)
+    tempdf3[1]$Corr <- djf_test$estimate
+    tempdf3[1]$p <- djf_test$p.value
+  output <- rbind(output, tempdf0, tempdf, tempdf2, tempdf3)
+  }
+  output <- output[-1,]
+  output$Corr <- as.numeric(output$Corr)
+  output$p <- as.numeric(output$p)
+  output$Month <- c("P.Nov","P.Dec","P.Jan","P.Feb","P.Mar","P.Apr","P.May","Jun","Jul","Aug","Sep","Oct","Nov","Dec","Jan","Feb","Mar","Apr","May","DJF")
+  return(output)
+}
+```
+
+
+THIS WORKS:
+```{r}
+dec_sub <- subset(clim[25:722,], month == c(1,2))
+dec_sub$year <- (dec_sub$year - 1)
+djf_sub <- rbind(dec_sub, subset(clim[13:722,], month == 12))
+djf_mean <- djf_sub %>% group_by(year) %>% summarise(gnip = mean(gnip, na.rm=TRUE), precip = mean(precip, na.rm=TRUE), temp = mean(temp, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), rh = mean(rh, na.rm=TRUE))
+djf_corrs <- data.frame(Clim=colnames(djf_mean[,-1]), Month=c("DJF"), Corr="", p="")
+for (param in c(2:ncol(djf_mean))){
+    m = param-1
+    test <- cor.test(djf_mean[[param]], std_summary)
+    djf_corrs[m,3] <- test$estimate
+    djf_corrs[m,4] <- test$p.value
+}
+```
+
+Plot doesn't work
+```{r}
+gg <- ggplot(djf_corrs, aes(x=Month, y=Clim, fill=Corr)) + geom_tile(color="white", size=0.1) + scale_fill_viridis(name="# Events") + coord_equal() + labs(x=NULL, y=NULL, title="DJF")+geom_point(data=mrd_df[mrd_df$p<0.05,])
+gg
+```
 
 
 
@@ -671,7 +888,7 @@ ar.datY <- as.array(datY)
 This works as is. Just change the parameter being used
 
 ```{r}
-datC <- brick("rasters/ERA5_precip.gri")
+datC <- brick("rasters/ERA5_RH.gri")
   datC_curr <- subset(datC, 121:828)
   datC_next <- subset(datC, 133:840)
   
@@ -698,7 +915,7 @@ library(abind)
 a <- abind(l, along=3)
 
 r <- brick(a, xmn=0.125, xmx=180.125, ymn=-89.875, ymx=0.125, crs=CRS("+proj=longlat +datum=WGS84"))
-writeRaster(r, paste0("precip_corr_test_curr_", month))
+writeRaster(r, paste0("RH_corr_test_curr_", month))
 
 }
   
@@ -725,12 +942,15 @@ library(abind)
 a <- abind(l, along=3)
 
 r <- brick(a, xmn=0.125, xmx=180.125, ymn=-89.875, ymx=0.125, crs=CRS("+proj=longlat +datum=WGS84"))
-writeRaster(r, paste0("precip_corr_test_next_", month))
+writeRaster(r, paste0("RH_corr_test_next_", month))
 
 }
 ```
 
 
+```{r}
+plot(raster("rasters/results/evap/evap_corr_test_next_01.gri"))
+```
 
 
 
