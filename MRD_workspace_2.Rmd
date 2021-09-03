@@ -8,6 +8,7 @@ output: html_document
 
 
 
+
 ```{r}
 library(lubridate)
 library(lattice)
@@ -887,12 +888,16 @@ Now:
 
 
 ```{r}
-plot(brick("rh_corr_results.gri"))
+plot(brick("rasters/results/rh_corr_results.gri"))
+```
+
+```{r}
+evap_brick <- brick("rasters/results/evap_corr_results.gri")
 ```
 
 
 ```{r}
-plot(rh_brick$prevnov)
+plot(evap_brick$nextfeb)
 plot(coastsCoarse,add=TRUE)
 ```
 
