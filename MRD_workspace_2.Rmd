@@ -6,6 +6,8 @@ output: html_document
 ---
 
 
+
+
 ```{r}
 library(lubridate)
 library(lattice)
@@ -27,6 +29,7 @@ library(raster)
 library(dplR)
 library(scPDSI)
 library(tidyr)
+library(rworldmap)
 ```
 
 
@@ -351,23 +354,25 @@ clim$pdsi <- pdsi_output$X
 o18_corrs(clim, annual_summary$mean)
 ```
 
+
 ```{r}
-clim <- clim[,c(-10)]
+clim_for_oxygen <- clim[,c(-6,-7,-8,-10)]
 ```
 
 
 ```{r}
-newdf <- o18_corrs(clim, std_summary)
+newdf <- o18_corrs(clim_for_oxygen, std_summary)
 newdf$Month <- factor(newdf$Month, levels=unique(newdf$Month))
 gg <- ggplot(newdf, aes(x=Month, y=Clim, fill=Corr)) + geom_tile(color="white", size=0.1) + scale_fill_viridis(name="# Events") + coord_equal() + labs(x=NULL, y=NULL, title="Monthly Correlations")+geom_point(data=newdf[newdf$p<0.05,])
 gg
 ```
 
 
+
 Groupings:
 
 ```{r}
-newdf <- o18_corrs(clim, downslope_summary$mean)
+newdf <- o18_corrs(clim_for_oxygen, downslope_summary$mean)
 newdf$Month <- factor(newdf$Month, levels=unique(newdf$Month))
 gg <- ggplot(newdf, aes(x=Month, y=Clim, fill=Corr)) + geom_tile(color="white", size=0.1) + scale_fill_viridis(name="# Events") + coord_equal() + labs(x=NULL, y=NULL, title="Downslope Monthly Correlations")+geom_point(data=newdf[newdf$p<0.05,])
 gg
@@ -375,7 +380,7 @@ gg
 
 
 ```{r}
-newdf <- o18_corrs(clim, upslope_summary$mean)
+newdf <- o18_corrs(clim_for_oxygen, upslope_summary$mean)
 newdf$Month <- factor(newdf$Month, levels=unique(newdf$Month))
 gg <- ggplot(newdf, aes(x=Month, y=Clim, fill=Corr)) + geom_tile(color="white", size=0.1) + scale_fill_viridis(name="# Events") + coord_equal() + labs(x=NULL, y=NULL, title="Upslope Monthly Correlations")+geom_point(data=newdf[newdf$p<0.05,])
 gg
@@ -395,7 +400,7 @@ plot(mon_test[2:60,]$pdsi, std_summary)
 Individual Trees:
 
 ```{r}
-newdf <- o18_corrs(clim, std_18o[,10])
+newdf <- o18_corrs(clim_for_oxygen, std_18o[,10])
 newdf$Month <- factor(newdf$Month, levels=unique(newdf$Month))
 gg <- ggplot(newdf, aes(x=Month, y=Clim, fill=Corr)) + geom_tile(color="white", size=0.1) + scale_fill_viridis(name="# Events") + coord_equal() + labs(x=NULL, y=NULL, title="619")+geom_point(data=newdf[newdf$p<0.05,])
 gg
@@ -550,7 +555,7 @@ plot(clim$temp, type="l")
 
 
 ```{r}
-clim_for_carbon <- clim[,c(-3,-10,-11)]
+clim_for_carbon <- clim[,c(-3,-6,-7,-10,-11)]
 ```
 
 
@@ -700,7 +705,7 @@ rwd_corrs(clim, trimMRD$mrdstd)
 ```
 
 ```{r}
-mrd_df <- rwd_corrs(clim, trimMRD$mrdstd)
+mrd_df <- rwd_corrs(clim_for_carbon, trimMRD$mrdstd)
 mrd_df$Month <- factor(mrd_df$Month, levels=unique(mrd_df$Month))
 gg <- ggplot(mrd_df, aes(x=Month, y=Clim, fill=Corr)) + geom_tile(color="white", size=0.1) + scale_fill_viridis(name="# Events") + coord_equal() + labs(x=NULL, y=NULL, title="MRD Ring Width Monthly Correlations")+geom_point(data=mrd_df[mrd_df$p<0.05,])
 gg
@@ -744,7 +749,7 @@ med_c_summary = apply(new_c13[,-4], 1, median, na.rm=T)
 ```
 
 ```{r}
-newdf <- o18_corrs(clim, med_summary)
+newdf <- o18_corrs(clim_for_oxygen, med_summary)
 newdf$Month <- factor(newdf$Month, levels=unique(newdf$Month))
 gg <- ggplot(newdf, aes(x=Month, y=Clim, fill=Corr)) + geom_tile(color="white", size=0.1) + scale_fill_viridis(name="# Events") + coord_equal() + labs(x=NULL, y=NULL, title="Monthly Correlations")+geom_point(data=newdf[newdf$p<0.05,])
 gg
@@ -855,6 +860,45 @@ gg
 
 
 
+Bringing in maps
+
+```{r}
+r1 <- raster("rasters/results/t2m/t2m_corr_test_curr_06.gri")
+r2 <- raster("rasters/results/t2m/t2m_corr_test_curr_07.gri")
+r3 <- raster("rasters/results/t2m/t2m_corr_test_curr_08.gri")
+r4 <- raster("rasters/results/t2m/t2m_corr_test_curr_09.gri")
+r5 <- raster("rasters/results/t2m/t2m_corr_test_curr_10.gri")
+r6 <-raster("rasters/results/t2m/t2m_corr_test_curr_11.gri")
+r7 <-raster("rasters/results/t2m/t2m_corr_test_curr_12.gri")
+r8 <-raster("rasters/results/t2m/t2m_corr_test_next_01.gri")
+r9 <-raster("rasters/results/t2m/t2m_corr_test_next_02.gri")
+r10 <-raster("rasters/results/t2m/t2m_corr_test_next_03.gri")
+r11 <-raster("rasters/results/t2m/t2m_corr_test_next_04.gri")
+r12 <-raster("rasters/results/t2m/t2m_corr_test_next_05.gri")
+s <- stack(r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12)
+b <- brick(s)
+names(b) <- c("prevjun","prevjul","prevaug","prevsep","prevoct","prevnov","prevdec","nextjan","nextfeb","nextmar","nextapr","nextmay")
+writeRaster(b, "t2m_corr_results", overwrite=TRUE)
+```
+
+Now: 
+-Trim somehow? May require Arc
+-Try DJF/seasonal
+
+
+```{r}
+plot(brick("rh_corr_results.gri"))
+```
+
+
+```{r}
+plot(rh_brick$prevnov)
+plot(coastsCoarse,add=TRUE)
+```
+
+
+
+
 
 
 Create yearly averages
@@ -949,7 +993,7 @@ writeRaster(r, paste0("RH_corr_test_next_", month))
 
 
 ```{r}
-plot(raster("rasters/results/evap/evap_corr_test_next_01.gri"))
+plot(raster("rasters/results/precip/precip_corr_test_next_01.gri"))
 ```
 
 
