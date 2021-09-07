@@ -130,7 +130,8 @@ mean(cors_C13[cors_C13 != 1])
 The same - duh.
 
 ```{r}
-std_summary <- rowMeans(std_18o, na.rm=TRUE)
+std_summary <- apply(tab, 1, median, na.rm=T)
+std_z_summary <- apply(std_18o, 1, median, na.rm=T)
 ```
 
 Compare MRD station to SILO
@@ -466,8 +467,8 @@ new_c13
 ```{r}
 std_13c <- data.frame(scale(new_c13))
 std_13c <- std_13c[,-4]
-c13_summary <- rowMeans(std_13c, na.rm=TRUE)
-c13_summary
+c13_summary <- apply(new_c13[,-4], 1, median, na.rm=T)
+c13_std_summary <- apply(std_13c, 1, median, na.rm=T)
 ```
 
 ```{r}
@@ -944,7 +945,7 @@ datC <- brick("rasters/ERA5_RH.gri")
 # Curr yr
   
 for (month in c("06","07","08","09","10","11","12")){
-sel_y <- names(datC_curr)[substr(names(datC_curr), 7, 8) %in% month] #Creates true/false field of rasters for that yr
+sel_y <- names(datC_curr)[substr(names(datC_curr), 7, 8) %in% month] #Creates true/false field of rasters for that yeaar
 #use that index to subset the raster brick
 datY <- subset(datC_curr, sel_y, value=T) #subsets the dataset of only those that are true
 ar.datY <- as.array(datY)
