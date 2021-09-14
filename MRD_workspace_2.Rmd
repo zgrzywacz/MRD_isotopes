@@ -366,10 +366,6 @@ gg <- ggplot(newdf, aes(x=Month, y=Clim, fill=Corr)) + geom_tile(color="white", 
 gg
 ```
 
-```{r}
-plot(std_summary, c13_summary)
-```
-
 
 Groupings:
 
@@ -1003,7 +999,7 @@ plot(brick("rasters/results/rh_corr_results.gri"))
 ```
 
 ```{r}
-evap_brick <- brick("rasters/results/evap_corr_results.gri")
+evap_brick <- brick("rasters/results/precip_corr_results.gri")
 ```
 
 
@@ -1062,6 +1058,31 @@ apply(dry,2,mean)
 ```
 
 If plotted, should be a near horizontal line from right to left, which suggests INCREASE in stomatal conductance and photosynthesis from wet to dry, which makes no sense.
+
+
+```{r}
+plot(std_summary, c13_summary)
+```
+
+```{r}
+dual_comp <- data.frame(o18 = std_summary, c13 = c13_summary, precip=ond_mean$precip, rh = ond_mean$rh, vpd=ond_mean$vpd)
+```
+
+```{r}
+ggplot(dual_comp, aes(x=o18, y=c13))+
+  geom_point(aes(col=rh))
+```
+
+```{r}
+minRH <- dual_comp[dual_comp$rh < 57,]
+maxVPD <- dual_comp[dual_comp$vpd > 5.3,]
+```
+
+```{r}
+ggplot(maxVPD, aes(x=o18, y=c13))+
+  geom_point(aes(col=vpd))
+```
+
 
 
 

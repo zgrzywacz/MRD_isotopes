@@ -8,6 +8,16 @@ output: html_document
 ```{r}
 library(splitr)
 library(lubridate)
+library("ggplot2")
+theme_set(theme_bw())
+library("sf")
+library("rnaturalearth")
+library("rnaturalearthdata")
+library(sp)
+library(raster)
+library(rgdal)
+library(RColorBrewer)
+library(rasterVis)
 ```
 
 ```{r}
@@ -48,45 +58,307 @@ traj.series <- function (dayDate){
       extended_met = TRUE
   ) 
 }
+traj.series.250 <- function (dayDate){
+  trajectory <- 
+    hysplit_trajectory(
+      lat = -41.83989,
+      lon = 145.531014,
+      height = 250,
+      duration = 120,
+      days = dayDate,
+      daily_hours = c(0, 6, 12, 18),
+      direction = "backward",
+      met_type = "reanalysis",
+      extended_met = TRUE
+  ) 
+}
+traj.series.500 <- function (dayDate){
+  trajectory <- 
+    hysplit_trajectory(
+      lat = -41.83989,
+      lon = 145.531014,
+      height = 500,
+      duration = 120,
+      days = dayDate,
+      daily_hours = c(0, 6, 12, 18),
+      direction = "backward",
+      met_type = "reanalysis",
+      extended_met = TRUE
+  ) 
+}
+```
 
-endDate <- seq(ymd('2012-11-01'), ymd('2013-02-01'), by = '5 day')
+```{r}
+world <- ne_countries(scale = "medium", returnclass = "sf")
+class(world)
+```
+
+```{r}
+endDate <- seq(ymd('2019-09-01'), ymd('2020-02-28'), by = '5 day')
 
 trajL <- lapply (endDate, FUN=traj.series)
 trajDF <- do.call(rbind, trajL)
-latlons <- data.frame(lon=trajDF$lon, lat=trajDF$lat)
+latlons10.1920 <- data.frame(lon=trajDF$lon, lat=trajDF$lat)
 ```
 
-
 ```{r}
-library("ggplot2")
-theme_set(theme_bw())
-library("sf")
-library("rnaturalearth")
-library("rnaturalearthdata")
-
-world <- ne_countries(scale = "medium", returnclass = "sf")
-class(world)
-
-ggplot(data = world) +
+plot1920 <- ggplot(data = world) +
     geom_sf() +
-    geom_point(data = latlons, aes(x = lon, y = lat), size = 0.5, 
+    geom_point(data = latlons10.1920, aes(x = lon, y = lat), size = 0.5, 
         shape = 1, col="grey50") +
     coord_sf(xlim = c(40, 160), ylim = c(-80, -20), expand = FALSE)
 ```
 
 ```{r}
-endDate <- seq(ymd('2010-06-01'), ymd('2011-05-31'), by = '5 day')
+png("hysplit19.20.png")
+print(plot1920)
+dev.off()
+```
+
+```{r}
+endDate <- seq(ymd('2010-09-01'), ymd('2011-02-28'), by = '5 day')
 
 trajL2 <- lapply (endDate, FUN=traj.series)
 trajDF2 <- do.call(rbind, trajL2)
-latlons2 <- data.frame(lon=trajDF2$lon, lat=trajDF2$lat)
+latlons10.1011 <- data.frame(lon=trajDF2$lon, lat=trajDF2$lat)
 ```
 
 ```{r}
-ggplot(data = world) +
+plot1011 <- ggplot(data = world) +
     geom_sf() +
-    geom_point(data = latlons2, aes(x = lon, y = lat), size = 0.5, 
+    geom_point(data = latlons10.1011, aes(x = lon, y = lat), size = 0.5, 
         shape = 1, col="grey50") +
     coord_sf(xlim = c(40, 160), ylim = c(-80, -20), expand = FALSE)
 ```
+
+```{r}
+png("hysplit10.11.png")
+print(plot1011)
+dev.off()
+```
+
+```{r}
+endDate <- seq(ymd('2006-09-01'), ymd('2007-02-28'), by = '5 day')
+
+trajL3 <- lapply (endDate, FUN=traj.series)
+trajDF3 <- do.call(rbind, trajL3)
+latlons10.0607 <- data.frame(lon=trajDF3$lon, lat=trajDF3$lat)
+```
+
+```{r}
+plot0607 <- ggplot(data = world) +
+    geom_sf() +
+    geom_point(data = latlons10.0607, aes(x = lon, y = lat), size = 0.5, 
+        shape = 1, col="grey50") +
+    coord_sf(xlim = c(40, 160), ylim = c(-80, -20), expand = FALSE)
+```
+
+```{r}
+png("hysplit06.07.png")
+print(plot0607)
+dev.off()
+```
+
+
+```{r}
+world_shp <- read_sf("coasts/ne_10m_coastline.shp")
+world_outline <- as(st_geometry(world_shp), Class="Spatial")
+```
+
+```{r summarize point density by raster}
+
+r <- raster(xmn=40, ymn=-80, xmx=160, ymx=-20, nrows=120, ncols=240)
+r[] <- 0
+
+# use rasterize() to summarize the other vars from trajDF
+hpa <- rasterize(latlons10.0607, r, field=trajDF3$pressure, fun=mean)
+
+count <- rasterize(latlons10.0607, r, field=trajDF3$receptor, fun=sum)
+
+
+colr <- colorRampPalette(brewer.pal(9, 'YlOrRd'))
+
+plot(count)
+plot(coastsCoarse, add=TRUE)
+
+#try RasterVis::levelplot
+```
+
+```{r}
+library(rasterVis)
+
+colr <- colorRampPalette(brewer.pal(9, 'BuGn'))
+AustProj <- CRS("+proj=lcc +lat_1=-28 +lat_2=-36 +lat_0=-32 +lon_0=135 +x_0=1000000 +y_0=2000000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs")
+
+AustProj <- CRS("+proj=aea +lat_1=-18 +lat_2=-36 +lat_0=0 +lon_0=132 +x_0=0 +y_0=0 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs")
+#reproject the raster:
+count_Oz <- projectRaster(count, crs = AustProj)
+tas_Oz <- spTransform(world_outline, CRSobj=AustProj)
+
+#unprojected: tas, count
+
+levelplot(count_Oz, margin=FALSE, xlab="Longitude", ylab="Latitude",  pretty=FALSE, col.regions=colr) +
+  latticeExtra::layer(sp.lines(tas_Oz))
+
+
+```
+
+```{r}
+colr <- colorRampPalette(brewer.pal(9, 'YlOrRd'))
+count <- rasterize(latlons10.1011, r, field=trajDF2$receptor, fun=sum)
+count_Oz <- projectRaster(count, crs = AustProj)
+levelplot(count_Oz, margin=FALSE, xlab="Longitude", ylab="Latitude",  pretty=FALSE, col.regions=colr, at=c(5,10,20,30,40,50,75,100,150,200,250), colorkey=list(col=colr, at=c(5,10,20,30,40,50,75,100,150,200,250))) +
+  latticeExtra::layer(sp.lines(tas_Oz))
+```
+
+
+```{r}
+count <- rasterize(latlons10.1920, r, field=trajDF$receptor, fun=sum)
+count_Oz <- projectRaster(count, crs = AustProj)
+levelplot(count_Oz, margin=FALSE, xlab="Longitude", ylab="Latitude",  pretty=FALSE, col.regions=colr) +
+  latticeExtra::layer(sp.lines(tas_Oz))
+```
+
+```{r}
+endDate <- seq(ymd('2019-09-01'), ymd('2020-02-28'), by = '5 day')
+
+trajL4 <- lapply (endDate, FUN=traj.series.250)
+trajDF4 <- do.call(rbind, trajL4)
+latlons250.1920 <- data.frame(lon=trajDF4$lon, lat=trajDF4$lat)
+tempplot <- ggplot(data = world) +
+    geom_sf() +
+    geom_point(data = latlons250.1920, aes(x = lon, y = lat), size = 0.5, 
+        shape = 1, col="grey50") +
+    coord_sf(xlim = c(40, 160), ylim = c(-80, -20), expand = FALSE)
+png("hysplit250.19.20.png")
+print(tempplot)
+dev.off()
+
+trajL5 <- lapply (endDate, FUN=traj.series.500)
+trajDF5 <- do.call(rbind, trajL5)
+latlons500.1920 <- data.frame(lon=trajDF5$lon, lat=trajDF5$lat)
+tempplot <- ggplot(data = world) +
+    geom_sf() +
+    geom_point(data = latlons500.1920, aes(x = lon, y = lat), size = 0.5, 
+        shape = 1, col="grey50") +
+    coord_sf(xlim = c(40, 160), ylim = c(-80, -20), expand = FALSE)
+png("hysplit500.19.20.png")
+print(tempplot)
+dev.off()
+```
+
+```{r}
+count <- rasterize(latlons250.1920, r, field=trajDF4$receptor, fun=sum)
+count_Oz <- projectRaster(count, crs = AustProj)
+levelplot(count_Oz, margin=FALSE, xlab="Longitude", ylab="Latitude",  pretty=FALSE, col.regions=colr) +
+  latticeExtra::layer(sp.lines(tas_Oz))
+```
+
+```{r}
+count <- rasterize(latlons500.1920, r, field=trajDF5$receptor, fun=sum)
+count_Oz <- projectRaster(count, crs = AustProj)
+levelplot(count_Oz, margin=FALSE, xlab="Longitude", ylab="Latitude",  pretty=FALSE, col.regions=colr) +
+  latticeExtra::layer(sp.lines(tas_Oz))
+```
+
+
+```{r}
+endDate <- seq(ymd('2010-09-01'), ymd('2011-02-28'), by = '5 day')
+
+trajL6 <- lapply (endDate, FUN=traj.series.250)
+trajDF6 <- do.call(rbind, trajL6)
+latlons250.1011 <- data.frame(lon=trajDF6$lon, lat=trajDF6$lat)
+tempplot <- ggplot(data = world) +
+    geom_sf() +
+    geom_point(data = latlons250.1011, aes(x = lon, y = lat), size = 0.5, 
+        shape = 1, col="grey50") +
+    coord_sf(xlim = c(40, 160), ylim = c(-80, -20), expand = FALSE)
+png("hysplit250.10.11.png")
+print(tempplot)
+dev.off()
+
+trajL7 <- lapply (endDate, FUN=traj.series.500)
+trajDF7 <- do.call(rbind, trajL7)
+latlons500.1011 <- data.frame(lon=trajDF7$lon, lat=trajDF7$lat)
+tempplot <- ggplot(data = world) +
+    geom_sf() +
+    geom_point(data = latlons500.1011, aes(x = lon, y = lat), size = 0.5, 
+        shape = 1, col="grey50") +
+    coord_sf(xlim = c(40, 160), ylim = c(-80, -20), expand = FALSE)
+png("hysplit500.10.11.png")
+print(tempplot)
+dev.off()
+```
+
+```{r}
+endDate <- seq(ymd('2006-09-01'), ymd('2007-02-28'), by = '5 day')
+
+trajL8 <- lapply (endDate, FUN=traj.series.250)
+trajDF8 <- do.call(rbind, trajL8)
+latlons250.0607 <- data.frame(lon=trajDF8$lon, lat=trajDF8$lat)
+tempplot <- ggplot(data = world) +
+    geom_sf() +
+    geom_point(data = latlons250.0607, aes(x = lon, y = lat), size = 0.5, 
+        shape = 1, col="grey50") +
+    coord_sf(xlim = c(40, 160), ylim = c(-80, -20), expand = FALSE)
+png("hysplit250.06.07.png")
+print(tempplot)
+dev.off()
+
+trajL9 <- lapply (endDate, FUN=traj.series.500)
+trajDF9 <- do.call(rbind, trajL9)
+latlons500.0607 <- data.frame(lon=trajDF9$lon, lat=trajDF9$lat)
+tempplot <- ggplot(data = world) +
+    geom_sf() +
+    geom_point(data = latlons500.0607, aes(x = lon, y = lat), size = 0.5, 
+        shape = 1, col="grey50") +
+    coord_sf(xlim = c(40, 160), ylim = c(-80, -20), expand = FALSE)
+png("hysplit500.06.07.png")
+print(tempplot)
+dev.off()
+```
+
+```{r}
+count <- rasterize(latlons10.1920, r, field=trajDF$receptor, fun=sum)
+count2 <- rasterize(latlons10.1011, r, field=trajDF2$receptor, fun=sum)
+```
+
+```{r}
+rbindtest <- rbind(trajDF, trajDF2, trajDF3, trajDF4, trajDF5, trajDF6, trajDF7, trajDF8, trajDF9)
+latlonstest <-  data.frame(lon=rbindtest$lon, lat=rbindtest$lat)
+countX <- rasterize(latlonstest, r, field=rbindtest$receptor, fun=sum)
+plot(countX)
+```
+
+
+
+
+```{r}
+countest <- count + count2
+
+plot(countest)
+```
+
+
+```{r}
+r <- raster(xmn=40, ymn=-80, xmx=160, ymx=-20, nrows=120, ncols=240)
+r[] <- 0
+trajDF <- trajDF[0,] 
+for (yr in c(2009:2018)){
+  start <- paste0(y,"-09-01")
+  end <- paste0((y+1),"-02-28")
+  endDate <- seq(ymd(start), ymd(end), by = '5 day')
+  
+  trajL <- lapply(endDate, FUN=traj.series)
+  trajTemp <- do.call(rbind, trajL)
+  trajDF <- rbind(trajDF,trajTemp)
+}
+
+latlons <-  data.frame(lon=trajDF$lon, lat=trajDF$lat)
+countFull <- rasterize(latlons, r, field=trajDF$receptor, fun=sum)
+writeRaster(countFull, "hysplit_sum_2009_2018")
+write.csv(trajDF, file = "hysplit_count_2009_2018.csv")
+```
+
+
 
