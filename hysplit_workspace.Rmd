@@ -341,12 +341,28 @@ plot(countest)
 
 
 ```{r}
+endDate <- seq(ymd('2012-09-01'), ymd('2013-02-28'), by = '5 day')
+
+trajL <- lapply (endDate, FUN=traj.series)
+trajDF <- do.call(rbind, trajL)
+latlons <-  data.frame(lon=trajDF$lon, lat=trajDF$lat)
+countFull <- rasterize(latlons, r, field=trajDF$receptor, fun=sum)
+writeRaster(countFull, "hysplit_sum_2012")
+write.csv(trajDF, file = "hysplit_count_2012.csv")
+```
+
+```{r}
+trajDF <- read.csv("hysplit_count_2000_2011.csv")
+```
+
+
+```{r}
 r <- raster(xmn=40, ymn=-80, xmx=160, ymx=-20, nrows=120, ncols=240)
 r[] <- 0
 trajDF <- trajDF[0,] 
-for (yr in c(2009:2018)){
-  start <- paste0(y,"-09-01")
-  end <- paste0((y+1),"-02-28")
+for (yr in c(1984:1989)){
+  start <- paste0(yr,"-09-01")
+  end <- paste0((yr+1),"-02-28")
   endDate <- seq(ymd(start), ymd(end), by = '5 day')
   
   trajL <- lapply(endDate, FUN=traj.series)
@@ -356,8 +372,8 @@ for (yr in c(2009:2018)){
 
 latlons <-  data.frame(lon=trajDF$lon, lat=trajDF$lat)
 countFull <- rasterize(latlons, r, field=trajDF$receptor, fun=sum)
-writeRaster(countFull, "hysplit_sum_2009_2018")
-write.csv(trajDF, file = "hysplit_count_2009_2018.csv")
+writeRaster(countFull, "hysplit_sum_1984_1989")
+write.csv(trajDF, file = "hysplit_count_1984_1989.csv")
 ```
 
 

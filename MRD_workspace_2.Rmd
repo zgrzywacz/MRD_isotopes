@@ -1084,6 +1084,153 @@ ggplot(maxVPD, aes(x=o18, y=c13))+
 ```
 
 
+```{r}
+datRas <- brick("rasters/ERA5_t2m.gri")
+datC <- subset(datRas, 121:828)
+sel_test <- names(datC)[substr(names(datC), 7, 8) %in% c("01","02")]
+```
+
+```{r}
+datC <- subset(datRas, 123:830)
+```
+
+
+This subsets the whole brick for just the months you want. The product here can be split even further
+```{r}
+sel_y <- names(datC)[substr(names(datC), 7, 8) %in% c("01","02")] #Creates true/false field of rasters for that yr
+#use that index to subset the raster brick
+datY <- subset(datC, sel_y, value=T) #subsets the dataset of only those that are true
+names(datY) <- sel_test # make this variable that is the names that I want for the layers
+
+
+sel_x <- names(datC)[substr(names(datC), 7, 8) %in% c("09","10","11","12")] #Creates true/false field of rasters for that year
+#use that index to subset the raster brick
+datX <- subset(datC, sel_x, value=T) #subsets the dataset of only those that are true
+
+
+s <- stack(datY, datX)
+b <- brick(s)
+writeRaster(b,"ERA_t2m_seas")
+```
+
+
+
+This suposedly turns your brick into annual (seasonal) averages. However it must be edited
+```{r}
+rasYrs <- as.character(1961:2018)
+datC <- brick("ERA_t2m_seas")
+sel_y <- names(datC)[substr(names(datC), 2, 5) %in% "1960"]
+datY <- subset(datC, sel_y, value=T)
+s <- stackApply(datY, indices =  rep(1,nlayers(datY)), fun = "mean", na.rm = T)
+for (year in rasYrs){ # rasYrs is c("1960","1961","1962"...)
+sel_y <- names(datC)[substr(names(datC), 2, 5) %in% rasYrs] #Creates true/false field of rasters for that year
+#use that index to subset the raster brick
+datY <- subset(datC, sel_y, value=T) #subsets the dataset of only those that are true
+mean <- stackApply(datY, indices =  rep(1,nlayers(datY)), fun = "mean", na.rm = T)
+s <- stack(s, mean)
+}
+b <- brick(s)
+writeRaster(b,"t2m_sept_feb_mean")
+```
+
+
+Manual if tool doesn't work:
+Must edit while using!!!
+
+```{r}
+sel_y <- names(datC)[substr(names(datC), 2, 5) %in% "2010"]
+datY <- subset(datC, sel_y, value=T)
+s0 <- stackApply(datY, indices =  rep(1,nlayers(datY)), fun = "mean", na.rm = T)
+names(s0) <- "X2010"
+sel_y <- names(datC)[substr(names(datC), 2, 5) %in% "2011"]
+datY <- subset(datC, sel_y, value=T)
+s1 <- stackApply(datY, indices =  rep(1,nlayers(datY)), fun = "mean", na.rm = T)
+names(s1) <- "X2011"
+sel_y <- names(datC)[substr(names(datC), 2, 5) %in% "2012"]
+datY <- subset(datC, sel_y, value=T)
+s2 <- stackApply(datY, indices =  rep(1,nlayers(datY)), fun = "mean", na.rm = T)
+names(s2) <- "X2012"
+sel_y <- names(datC)[substr(names(datC), 2, 5) %in% "2013"]
+datY <- subset(datC, sel_y, value=T)
+s3 <- stackApply(datY, indices =  rep(1,nlayers(datY)), fun = "mean", na.rm = T)
+names(s3) <- "X2013"
+sel_y <- names(datC)[substr(names(datC), 2, 5) %in% "2014"]
+datY <- subset(datC, sel_y, value=T)
+s4 <- stackApply(datY, indices =  rep(1,nlayers(datY)), fun = "mean", na.rm = T)
+names(s4) <- "X2014"
+sel_y <- names(datC)[substr(names(datC), 2, 5) %in% "2015"]
+datY <- subset(datC, sel_y, value=T)
+s5 <- stackApply(datY, indices =  rep(1,nlayers(datY)), fun = "mean", na.rm = T)
+names(s5) <- "X2015"
+sel_y <- names(datC)[substr(names(datC), 2, 5) %in% "2016"]
+datY <- subset(datC, sel_y, value=T)
+s6 <- stackApply(datY, indices =  rep(1,nlayers(datY)), fun = "mean", na.rm = T)
+names(s6) <- "X2016"
+sel_y <- names(datC)[substr(names(datC), 2, 5) %in% "2017"]
+datY <- subset(datC, sel_y, value=T)
+s7 <- stackApply(datY, indices =  rep(1,nlayers(datY)), fun = "mean", na.rm = T)
+names(s7) <- "X2017"
+sel_y <- names(datC)[substr(names(datC), 2, 5) %in% "2018"]
+datY <- subset(datC, sel_y, value=T)
+s8 <- stackApply(datY, indices =  rep(1,nlayers(datY)), fun = "mean", na.rm = T)
+names(s8) <- "X2018"
+
+
+
+s <- stack(s,s0,s1,s2,s3,s4,s5,s6,s7,s8)
+```
+sel_y <- names(datC)[substr(names(datC), 2, 5) %in% "2009"]
+datY <- subset(datC, sel_y, value=T)
+s9 <- stackApply(datY, indices =  rep(1,nlayers(datY)), fun = "mean", na.rm = T)
+names(s9) <- "X2009"
+```{r}
+b <- brick(s)
+writeRaster(b,"t2m_sept_feb_mean")
+```
+
+
+Correlate:
+
+```{r}
+datY <- brick("t2m_sept_feb_mean.gri")
+ar.datY <- as.array(datY)
+
+z <- apply(ar.datY, 1:2, rcorr, std_summary, type="pearson")
+corr = array(0, dim=c(360,720) )
+sig = array(0, dim=c(360,720) )
+for (x in 1:259200)
+{
+corr[x] <- z[[x]][[1]][2]
+sig[x] <- z[[x]][[3]][2]
+}
+
+l <- list(corr, sig)
+a <- do.call(rbind, l)
+library(abind)
+a <- abind(l, along=3)
+
+r <- brick(a, xmn=0.125, xmx=180.125, ymn=-89.875, ymx=0.125, crs=CRS("+proj=longlat +datum=WGS84"))
+writeRaster(r, paste0("t2m_corr_sep_feb"))
+```
+
+```{r}
+resbrick <- brick("t2m_corr_sep_feb.gri")
+```
+
+```{r}
+plot(resbrick$layer.1)
+```
+
+
+END HERE!
+
+
+
+
+
+
+
+
 
 
 
