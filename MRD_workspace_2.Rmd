@@ -31,6 +31,7 @@ library(dplR)
 library(scPDSI)
 library(tidyr)
 library(rworldmap)
+library(ggpubr)
 ```
 
 
@@ -89,14 +90,33 @@ clim$echam5 <- as.numeric(NA)
 clim[1:660,]$echam5 <- echam5[13:672,]$d18oP
 ```
 
+```{r}
+for (i in 1:732){
+  if (clim[i,2]%in% c(1,3,5,7,8,10,12) == TRUE ){
+    clim[i,4] <- clim[i,4]*31
+  }
+  else if (clim[i,2]%in% c(4,6,9,11) == TRUE ){
+    clim[i,4] <- clim[i,4]*30
+  }
+  else{
+    clim[i,4] <- clim[i,4]*28
+  }
+}
+```
+
+
 Visualize 18O series
 
 ```{r}
 raw$year <- as.factor(raw$year)
-ggplot(raw, aes(x=year, y=o18corr)) + 
+ggplot(raw, aes(x=year, y=c13corr)) + 
   geom_boxplot(fill='#E69F00', color='black')
 ```
 
+```{r}
+cors1 <- cor(tab, use="complete.obs")
+mean(cors1[cors1!=1])
+```
 
 
 Standardize 18O series
@@ -130,6 +150,12 @@ mean(cors_C13[cors_C13 != 1])
 The same - duh.
 
 ```{r}
+sd_vals <- apply(tab, 1, sd, na.rm=T)
+mean(sd_vals)
+```
+
+
+```{r}
 std_summary <- apply(tab, 1, median, na.rm=T)
 std_z_summary <- apply(std_18o, 1, median, na.rm=T)
 ```
@@ -157,26 +183,12 @@ plot(MRDtemp[1:288,]$Temp, clim[445:732,]$temp)
 plot(MRDrad[1:360,]$Rad, clim[373:732,]$rad)
 ```
 
-```{r}
-Precip_compare <- data.frame(year=clim[457:732,]$year, month=clim[457:732,]$month, station = MRDprecip[1:276,]$Precip, silo = clim[457:732,]$precip)
-Precip_compare$monthSilo <- as.numeric(NA)
-for (i in 1:276){
-  if (Precip_compare[i,2]%in% c(1,3,5,7,8,10,12) == TRUE ){
-    Precip_compare[i,5] <- Precip_compare[i,4]*31
-  }
-  else if (Precip_compare[i,2]%in% c(4,6,9,11) == TRUE ){
-    Precip_compare[i,5] <- Precip_compare[i,4]*30
-  }
-  else{
-    Precip_compare[i,5] <- Precip_compare[i,4]*28
-  }
-}
-```
 
 
 
 
 ```{r}
+Precip_compare <- data.frame(station = MRDprecip[1:276,]$Precip, silo = clim[457:732,]$precip)
 Temp_compare <- data.frame(station = MRDtemp[1:288,]$Temp, silo = clim[445:732,]$temp)
 Rad_compare <- data.frame(station = MRDrad[1:360,]$Rad, silo = clim[373:732,]$rad)
 ```
@@ -185,11 +197,17 @@ CHANGE PRECIP to mm total or mm/day (figure hour how I did mm/day the first time
 Repeat this plot for temp and rad
 
 ```{r}
-ggplot(Precip_compare, aes(station, monthSilo))+
-  geom_point(shape=23, color="blue")+
-  xlab("MRD Station Precipitation")+
-  ylab("SILO Precipitation")
+png(file="tempCompare.png")
+ggplot(Temp_compare, aes(station, silo))+
+  geom_point(shape=23, color="red")+
+  xlab("MRD Station Temperature (°C)")+
+  ylab("SILO Temperature (°C)")+
+  scale_x_continuous(breaks=seq(0,20,5))+
+  scale_y_continuous(breaks=seq(0,20,5))
+dev.off()
 ```
+
+
 
 
 Station data follows closely. BUT is there a significant change pre-199x (whenever station comes in)
@@ -258,7 +276,9 @@ climograph <- ggplot(data = ggdf, mapping = aes(x = Month, y = prec_mm, group = 
 
 
 ```{r}
+png(file="climograph.png")
 climograph
+dev.off()
 ```
 
 
@@ -461,11 +481,23 @@ new_c13
 ```
 
 ```{r}
+plot(new_c13[,2])
+```
+
+
+
+```{r}
 std_13c <- data.frame(scale(new_c13))
 std_13c <- std_13c[,-4]
 c13_summary <- apply(new_c13[,-4], 1, median, na.rm=T)
 c13_std_summary <- apply(std_13c, 1, median, na.rm=T)
 ```
+
+```{r}
+cors2 <- cor(new_c13[,-4], use="complete.obs")
+mean(cors2[cors2!=1])
+```
+
 
 ```{r}
 plot(names(c13_summary), c13_summary)
@@ -483,7 +515,7 @@ Plotting Graven vs. Uncorrected Raw vs. Suess Corrected
 
 ```{r}
 plot(c(1960:2018), rowMeans(scale(tab2[-4]), na.rm=TRUE), type="l",col="red")
-lines(c(1960:2018), c13_summary, col="blue")
+lines(c(1960:2018), c13_std_summary, col="blue")
 lines(c(1960:2018), scale(split_annual_c13[1:59,]$BH_shift), col="green")
 ```
 
@@ -798,7 +830,7 @@ THIS WORKS:
 dec_sub <- subset(clim[25:722,], month == c(1,2))
 dec_sub$year <- (dec_sub$year - 1)
 djf_sub <- rbind(dec_sub, subset(clim[13:722,], month == 12))
-djf_mean <- djf_sub %>% group_by(year) %>% summarise(gnip = mean(gnip, na.rm=TRUE), precip = mean(precip, na.rm=TRUE), temp = mean(temp, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), rh = mean(rh, na.rm=TRUE))
+djf_mean <- djf_sub %>% group_by(year) %>% summarise(rad = mean(rad, na.rm=TRUE), precip = sum(precip, na.rm=TRUE), temp = mean(temp, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), rh = mean(rh, na.rm=TRUE))
 djf_corrs <- data.frame(Clim=colnames(djf_mean[,-1]), Month=c("DJF"), Corr="", p="")
 for (param in c(2:ncol(djf_mean))){
     m = param-1
@@ -809,7 +841,7 @@ for (param in c(2:ncol(djf_mean))){
 nov_sub <- subset(clim[25:722,], month == 1)
 nov_sub$year <- (nov_sub$year - 1)
 ndj_sub <- rbind(nov_sub, subset(clim[13:722,], month == c(11,12)))
-ndj_mean <- ndj_sub %>% group_by(year) %>% summarise(gnip = mean(gnip, na.rm=TRUE), precip = mean(precip, na.rm=TRUE), temp = mean(temp, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), rh = mean(rh, na.rm=TRUE))
+ndj_mean <- ndj_sub %>% group_by(year) %>% summarise(rad = mean(rad, na.rm=TRUE), precip = sum(precip, na.rm=TRUE), temp = mean(temp, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), rh = mean(rh, na.rm=TRUE))
 ndj_corrs <- data.frame(Clim=colnames(ndj_mean[,-1]), Month=c("NDJ"), Corr="", p="")
 for (param in c(2:ncol(ndj_mean))){
     m = param-1
@@ -818,7 +850,7 @@ for (param in c(2:ncol(ndj_mean))){
     ndj_corrs[m,4] <- test$p.value
 }
 ond_sub <- subset(clim[13:722,], month == c(10,11,12))
-ond_mean <- ond_sub %>% group_by(year) %>% summarise(gnip = mean(gnip, na.rm=TRUE), precip = mean(precip, na.rm=TRUE), temp = mean(temp, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), rh = mean(rh, na.rm=TRUE))
+ond_mean <- ond_sub %>% group_by(year) %>% summarise(rad = mean(rad, na.rm=TRUE), precip = sum(precip, na.rm=TRUE), temp = mean(temp, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), rh = mean(rh, na.rm=TRUE))
 ond_corrs <- data.frame(Clim=colnames(ond_mean[,-1]), Month=c("OND"), Corr="", p="")
 for (param in c(2:ncol(ond_mean))){
     m = param-1
@@ -828,7 +860,7 @@ for (param in c(2:ncol(ond_mean))){
 }
 jfm_sub <- subset(clim[25:723,], month == c(1,2,3))
 jfm_sub$year <- (jfm_sub$year - 1)
-jfm_mean <- jfm_sub %>% group_by(year) %>% summarise(gnip = mean(gnip, na.rm=TRUE), precip = mean(precip, na.rm=TRUE), temp = mean(temp, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), rh = mean(rh, na.rm=TRUE))
+jfm_mean <- jfm_sub %>% group_by(year) %>% summarise(rad = mean(rad, na.rm=TRUE), precip = sum(precip, na.rm=TRUE), temp = mean(temp, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), rh = mean(rh, na.rm=TRUE))
 jfm_corrs <- data.frame(Clim=colnames(jfm_mean[,-1]), Month=c("JFM"), Corr="", p="")
 for (param in c(2:ncol(jfm_mean))){
     m = param-1
@@ -837,7 +869,7 @@ for (param in c(2:ncol(jfm_mean))){
     jfm_corrs[m,4] <- test$p.value
 }
 son_sub <- subset(clim[21:722,], month == c(9,10,11))
-son_mean <- son_sub %>% group_by(year) %>% summarise(gnip = mean(gnip, na.rm=TRUE), precip = mean(precip, na.rm=TRUE), temp = mean(temp, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), rh = mean(rh, na.rm=TRUE))
+son_mean <- son_sub %>% group_by(year) %>% summarise(rad = mean(rad, na.rm=TRUE), precip = sum(precip, na.rm=TRUE), temp = mean(temp, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), rh = mean(rh, na.rm=TRUE))
 son_corrs <- data.frame(Clim=colnames(son_mean[,-1]), Month=c("SON"), Corr="", p="")
 for (param in c(2:ncol(son_mean))){
     m = param-1
@@ -845,9 +877,25 @@ for (param in c(2:ncol(son_mean))){
     son_corrs[m,3] <- test$estimate
     son_corrs[m,4] <- test$p.value
 }
+sf_sub <- subset(clim[25:722,], month == c(1,2))
+sf_sub$year <- (sf_sub$year - 1)
+full_sub <- rbind(sf_sub, subset(clim[13:722,], month == c(9,10,11,12)))
+full_mean <- full_sub %>% group_by(year) %>% summarise(rad = mean(rad, na.rm=TRUE), precip = sum(precip, na.rm=TRUE), temp = mean(temp, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), rh = mean(rh, na.rm=TRUE))
+full_corrs <- data.frame(Clim=colnames(full_mean[,-1]), Month=c("SONDJF"), Corr="", p="")
+for (param in c(2:ncol(full_mean))){
+    m = param-1
+    test <- cor.test(full_mean[[param]], std_summary)
+    full_corrs[m,3] <- test$estimate
+    full_corrs[m,4] <- test$p.value
+}
+
+seas_corrs <- rbind(son_corrs, ond_corrs,ndj_corrs,djf_corrs,jfm_corrs, full_corrs)
+seas_corrs$Corr <- as.numeric(seas_corrs$Corr)
+seas_corrs$p <- as.numeric(seas_corrs$p)
+```
 fma_sub <- subset(clim[26:724,], month == c(2,3,4))
 fma_sub$year <- (fma_sub$year - 1)
-fma_mean <- fma_sub %>% group_by(year) %>% summarise(gnip = mean(gnip, na.rm=TRUE), precip = mean(precip, na.rm=TRUE), temp = mean(temp, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), rh = mean(rh, na.rm=TRUE))
+fma_mean <- fma_sub %>% group_by(year) %>% summarise(rad = mean(rad, na.rm=TRUE), precip = sum(precip, na.rm=TRUE), temp = mean(temp, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), rh = mean(rh, na.rm=TRUE))
 fma_corrs <- data.frame(Clim=colnames(fma_mean[,-1]), Month=c("FMA"), Corr="", p="")
 for (param in c(2:ncol(fma_mean))){
     m = param-1
@@ -857,7 +905,7 @@ for (param in c(2:ncol(fma_mean))){
 }
 mam_sub <- subset(clim[27:725,], month == c(3,4,5))
 mam_sub$year <- (mam_sub$year - 1)
-mam_mean <- mam_sub %>% group_by(year) %>% summarise(gnip = mean(gnip, na.rm=TRUE), precip = mean(precip, na.rm=TRUE), temp = mean(temp, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), rh = mean(rh, na.rm=TRUE))
+mam_mean <- mam_sub %>% group_by(year) %>% summarise(rad = mean(rad, na.rm=TRUE), precip = sum(precip, na.rm=TRUE), temp = mean(temp, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), rh = mean(rh, na.rm=TRUE))
 mam_corrs <- data.frame(Clim=colnames(mam_mean[,-1]), Month=c("MAM"), Corr="", p="")
 for (param in c(2:ncol(mam_mean))){
     m = param-1
@@ -867,7 +915,7 @@ for (param in c(2:ncol(mam_mean))){
 }
 amj_sub <- subset(clim[28:726,], month == c(4,5,6))
 amj_sub$year <- (amj_sub$year - 1)
-amj_mean <- amj_sub %>% group_by(year) %>% summarise(gnip = mean(gnip, na.rm=TRUE), precip = mean(precip, na.rm=TRUE), temp = mean(temp, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), rh = mean(rh, na.rm=TRUE))
+amj_mean <- amj_sub %>% group_by(year) %>% summarise(rad = mean(rad, na.rm=TRUE), precip = sum(precip, na.rm=TRUE), temp = mean(temp, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), rh = mean(rh, na.rm=TRUE))
 amj_corrs <- data.frame(Clim=colnames(amj_mean[,-1]), Month=c("AMJ"), Corr="", p="")
 for (param in c(2:ncol(amj_mean))){
     m = param-1
@@ -876,21 +924,381 @@ for (param in c(2:ncol(amj_mean))){
     amj_corrs[m,4] <- test$p.value
 }
 
-seas_corrs <- rbind(son_corrs, ond_corrs,ndj_corrs,djf_corrs,jfm_corrs, fma_corrs, mam_corrs, amj_corrs)
+
+Plot
+```{r}
+
+seas_corrs$Month <- factor(seas_corrs$Month, levels=unique(seas_corrs$Month))
+gg <- ggplot(seas_corrs, aes(x=Month, y=Clim, fill=Corr)) + 
+geom_tile(color="white", size=0.1) +
+scale_fill_viridis(name="Pearson's r", breaks=c(-0.5,-0.25,0,0.25,0.5), limits=c(-0.6,0.6)) + 
+coord_equal() +
+labs(x=NULL, y=NULL, title="d18O Correlations")+
+scale_y_discrete(labels=c("Precipitation","Solar Radiation","RH","Temp","VPD"))+
+geom_point(data=seas_corrs[seas_corrs$p<0.05,])
+png(file="o18corr.png")
+gg
+dev.off()
+```
+
+```{r}
+dec_sub <- subset(clim[25:722,], month == c(1,2))
+dec_sub$year <- (dec_sub$year - 1)
+djf_sub <- rbind(dec_sub, subset(clim[13:722,], month == 12))
+djf_mean <- djf_sub %>% group_by(year) %>% summarise(gnip=mean(gnip, na.rm=TRUE))
+djf_corrs <- data.frame(Clim=colnames(djf_mean[,-1]), Month=c("DJF"), Corr="", p="")
+for (param in c(2:ncol(djf_mean))){
+    m = param-1
+    test <- cor.test(djf_mean[[param]], std_summary)
+    djf_corrs[m,3] <- test$estimate
+    djf_corrs[m,4] <- test$p.value
+}
+nov_sub <- subset(clim[25:722,], month == 1)
+nov_sub$year <- (nov_sub$year - 1)
+ndj_sub <- rbind(nov_sub, subset(clim[13:722,], month == c(11,12)))
+ndj_mean <- ndj_sub %>% group_by(year) %>% summarise(gnip=mean(gnip, na.rm=TRUE))
+ndj_corrs <- data.frame(Clim=colnames(ndj_mean[,-1]), Month=c("NDJ"), Corr="", p="")
+for (param in c(2:ncol(ndj_mean))){
+    m = param-1
+    test <- cor.test(ndj_mean[[param]], std_summary)
+    ndj_corrs[m,3] <- test$estimate
+    ndj_corrs[m,4] <- test$p.value
+}
+ond_sub <- subset(clim[13:722,], month == c(10,11,12))
+ond_mean <- ond_sub %>% group_by(year) %>% summarise(gnip=mean(gnip, na.rm=TRUE))
+ond_corrs <- data.frame(Clim=colnames(ond_mean[,-1]), Month=c("OND"), Corr="", p="")
+for (param in c(2:ncol(ond_mean))){
+    m = param-1
+    test <- cor.test(ond_mean[[param]], std_summary)
+    ond_corrs[m,3] <- test$estimate
+    ond_corrs[m,4] <- test$p.value
+}
+jfm_sub <- subset(clim[25:723,], month == c(1,2,3))
+jfm_sub$year <- (jfm_sub$year - 1)
+jfm_mean <- jfm_sub %>% group_by(year) %>% summarise(gnip=mean(gnip, na.rm=TRUE))
+jfm_corrs <- data.frame(Clim=colnames(jfm_mean[,-1]), Month=c("JFM"), Corr="", p="")
+for (param in c(2:ncol(jfm_mean))){
+    m = param-1
+    test <- cor.test(jfm_mean[[param]], std_summary)
+    jfm_corrs[m,3] <- test$estimate
+    jfm_corrs[m,4] <- test$p.value
+}
+son_sub <- subset(clim[21:722,], month == c(9,10,11))
+son_mean <- son_sub %>% group_by(year) %>% summarise(gnip=mean(gnip, na.rm=TRUE))
+son_corrs <- data.frame(Clim=colnames(son_mean[,-1]), Month=c("SON"), Corr="", p="")
+for (param in c(2:ncol(son_mean))){
+    m = param-1
+    test <- cor.test(son_mean[[param]], std_summary)
+    son_corrs[m,3] <- test$estimate
+    son_corrs[m,4] <- test$p.value
+}
+sf_sub <- subset(clim[25:722,], month == c(1,2))
+sf_sub$year <- (sf_sub$year - 1)
+full_sub <- rbind(sf_sub, subset(clim[13:722,], month == c(9,10,11,12)))
+full_mean <- full_sub %>% group_by(year) %>% summarise(gnip=mean(gnip, na.rm=TRUE))
+full_corrs <- data.frame(Clim=colnames(full_mean[,-1]), Month=c("SONDJF"), Corr="", p="")
+for (param in c(2:ncol(full_mean))){
+    m = param-1
+    test <- cor.test(full_mean[[param]], std_summary)
+    full_corrs[m,3] <- test$estimate
+    full_corrs[m,4] <- test$p.value
+}
+
+seas_corrs <- rbind(son_corrs, ond_corrs,ndj_corrs,djf_corrs,jfm_corrs, full_corrs)
+seas_corrs$Corr <- as.numeric(seas_corrs$Corr)
+seas_corrs$p <- as.numeric(seas_corrs$p)
+```
+
+```{r}
+seas_corrs$Month <- factor(seas_corrs$Month, levels=unique(seas_corrs$Month))
+gg <- ggplot(seas_corrs, aes(x=Month, y=Clim, fill=Corr)) + 
+geom_tile(color="white", size=0.1) +
+scale_fill_viridis(name="Pearson's r", breaks=c(-0.5,-0.25,0,0.25,0.5), limits=c(-0.6,0.6)) + 
+coord_equal() +
+labs(x=NULL, y=NULL, title="GNIP ~ d18O Correlations")+
+scale_y_discrete(labels=c("GNIP"))+
+geom_point(data=seas_corrs[seas_corrs$p<0.05,])
+gg
+```
+
+```{r}
+ndj_mean$o18 <- std_summary
+lm_gnip <- lm(o18 ~ gnip, data=ndj_mean)
+summary(lm_gnip)
+```
+
+
+```{r}
+png(file="GNIPcomp.png", height = 600, width = 600)
+ggplot(data=ndj_mean, aes(x=gnip, y=o18))+
+  geom_point()+
+  geom_abline(intercept= lm_gnip$coefficients[1], slope=lm_gnip$coefficients[2], col="red")+
+   labs(y= "KBP δ18O (‰)", x = "November - January δ18Op (‰) at Cape Grim")
+dev.off()
+```
+
+
+
+CARBON:
+```{r}
+dec_sub <- subset(clim[25:722,], month == c(1,2))
+dec_sub$year <- (dec_sub$year - 1)
+djf_sub <- rbind(dec_sub, subset(clim[13:722,], month == 12))
+djf_mean <- djf_sub %>% group_by(year) %>% summarise(rad = mean(rad, na.rm=TRUE), precip = sum(precip, na.rm=TRUE), temp = mean(temp, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), rh = mean(rh, na.rm=TRUE))
+djf_corrs <- data.frame(Clim=colnames(djf_mean[,-1]), Month=c("DJF"), Corr="", p="")
+for (param in c(2:ncol(djf_mean))){
+    m = param-1
+    test <- cor.test(djf_mean[[param]], c13_summary)
+    djf_corrs[m,3] <- test$estimate
+    djf_corrs[m,4] <- test$p.value
+}
+nov_sub <- subset(clim[25:722,], month == 1)
+nov_sub$year <- (nov_sub$year - 1)
+ndj_sub <- rbind(nov_sub, subset(clim[13:722,], month == c(11,12)))
+ndj_mean <- ndj_sub %>% group_by(year) %>% summarise(rad = mean(rad, na.rm=TRUE), precip = sum(precip, na.rm=TRUE), temp = mean(temp, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), rh = mean(rh, na.rm=TRUE))
+ndj_corrs <- data.frame(Clim=colnames(ndj_mean[,-1]), Month=c("NDJ"), Corr="", p="")
+for (param in c(2:ncol(ndj_mean))){
+    m = param-1
+    test <- cor.test(ndj_mean[[param]], c13_summary)
+    ndj_corrs[m,3] <- test$estimate
+    ndj_corrs[m,4] <- test$p.value
+}
+ond_sub <- subset(clim[13:722,], month == c(10,11,12))
+ond_mean <- ond_sub %>% group_by(year) %>% summarise(rad = mean(rad, na.rm=TRUE), precip = sum(precip, na.rm=TRUE), temp = mean(temp, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), rh = mean(rh, na.rm=TRUE))
+ond_corrs <- data.frame(Clim=colnames(ond_mean[,-1]), Month=c("OND"), Corr="", p="")
+for (param in c(2:ncol(ond_mean))){
+    m = param-1
+    test <- cor.test(ond_mean[[param]], c13_summary)
+    ond_corrs[m,3] <- test$estimate
+    ond_corrs[m,4] <- test$p.value
+}
+jfm_sub <- subset(clim[25:723,], month == c(1,2,3))
+jfm_sub$year <- (jfm_sub$year - 1)
+jfm_mean <- jfm_sub %>% group_by(year) %>% summarise(rad = mean(rad, na.rm=TRUE), precip = sum(precip, na.rm=TRUE), temp = mean(temp, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), rh = mean(rh, na.rm=TRUE))
+jfm_corrs <- data.frame(Clim=colnames(jfm_mean[,-1]), Month=c("JFM"), Corr="", p="")
+for (param in c(2:ncol(jfm_mean))){
+    m = param-1
+    test <- cor.test(jfm_mean[[param]], c13_summary)
+    jfm_corrs[m,3] <- test$estimate
+    jfm_corrs[m,4] <- test$p.value
+}
+son_sub <- subset(clim[21:722,], month == c(9,10,11))
+son_mean <- son_sub %>% group_by(year) %>% summarise(rad = mean(rad, na.rm=TRUE), precip = sum(precip, na.rm=TRUE), temp = mean(temp, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), rh = mean(rh, na.rm=TRUE))
+son_corrs <- data.frame(Clim=colnames(son_mean[,-1]), Month=c("SON"), Corr="", p="")
+for (param in c(2:ncol(son_mean))){
+    m = param-1
+    test <- cor.test(son_mean[[param]], c13_summary)
+    son_corrs[m,3] <- test$estimate
+    son_corrs[m,4] <- test$p.value
+}
+sf_sub <- subset(clim[25:722,], month == c(1,2))
+sf_sub$year <- (sf_sub$year - 1)
+full_sub <- rbind(sf_sub, subset(clim[13:722,], month == c(9,10,11,12)))
+full_mean <- full_sub %>% group_by(year) %>% summarise(rad = mean(rad, na.rm=TRUE), precip = sum(precip, na.rm=TRUE), temp = mean(temp, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), rh = mean(rh, na.rm=TRUE))
+full_corrs <- data.frame(Clim=colnames(full_mean[,-1]), Month=c("SONDJF"), Corr="", p="")
+for (param in c(2:ncol(full_mean))){
+    m = param-1
+    test <- cor.test(full_mean[[param]], c13_summary)
+    full_corrs[m,3] <- test$estimate
+    full_corrs[m,4] <- test$p.value
+}
+
+seas_corrs <- rbind(son_corrs, ond_corrs,ndj_corrs,djf_corrs,jfm_corrs,full_corrs)
+seas_corrs$Corr <- as.numeric(seas_corrs$Corr)
+seas_corrs$p <- as.numeric(seas_corrs$p)
+```
+
+```{r}
+seas_corrs$Month <- factor(seas_corrs$Month, levels=unique(seas_corrs$Month))
+gg <- ggplot(seas_corrs, aes(x=Month, y=Clim, fill=Corr)) + 
+geom_tile(color="white", size=0.1) +
+scale_fill_viridis(name="Pearson's r", breaks=c(-0.5,-0.25,0,0.25,0.5), limits=c(-0.6,0.6)) + 
+coord_equal() +
+labs(x=NULL, y=NULL, title="d13C Correlations")+
+scale_y_discrete(labels=c("Precipitation","Solar Radiation","RH","Temp","VPD"))+
+geom_point(data=seas_corrs[seas_corrs$p<0.05,])
+png(file="c13corr.png")
+gg
+dev.off()
+```
+
+
+RING WIDTH:
+```{r}
+dec_sub <- subset(clim[25:722,], month == c(1,2))
+dec_sub$year <- (dec_sub$year - 1)
+djf_sub <- rbind(dec_sub, subset(clim[13:722,], month == 12))
+djf_mean <- djf_sub %>% group_by(year) %>% summarise(rad = mean(rad, na.rm=TRUE), precip = sum(precip, na.rm=TRUE), temp = mean(temp, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), rh = mean(rh, na.rm=TRUE))
+djf_corrs <- data.frame(Clim=colnames(djf_mean[,-1]), Month=c("DJF"), Corr="", p="")
+for (param in c(2:ncol(djf_mean))){
+    m = param-1
+    test <- cor.test(djf_mean[[param]], trimMRD$mrdstd)
+    djf_corrs[m,3] <- test$estimate
+    djf_corrs[m,4] <- test$p.value
+}
+nov_sub <- subset(clim[25:722,], month == 1)
+nov_sub$year <- (nov_sub$year - 1)
+ndj_sub <- rbind(nov_sub, subset(clim[13:722,], month == c(11,12)))
+ndj_mean <- ndj_sub %>% group_by(year) %>% summarise(rad = mean(rad, na.rm=TRUE), precip = sum(precip, na.rm=TRUE), temp = mean(temp, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), rh = mean(rh, na.rm=TRUE))
+ndj_corrs <- data.frame(Clim=colnames(ndj_mean[,-1]), Month=c("NDJ"), Corr="", p="")
+for (param in c(2:ncol(ndj_mean))){
+    m = param-1
+    test <- cor.test(ndj_mean[[param]], trimMRD$mrdstd)
+    ndj_corrs[m,3] <- test$estimate
+    ndj_corrs[m,4] <- test$p.value
+}
+ond_sub <- subset(clim[13:722,], month == c(10,11,12))
+ond_mean <- ond_sub %>% group_by(year) %>% summarise(rad = mean(rad, na.rm=TRUE), precip = sum(precip, na.rm=TRUE), temp = mean(temp, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), rh = mean(rh, na.rm=TRUE))
+ond_corrs <- data.frame(Clim=colnames(ond_mean[,-1]), Month=c("OND"), Corr="", p="")
+for (param in c(2:ncol(ond_mean))){
+    m = param-1
+    test <- cor.test(ond_mean[[param]], trimMRD$mrdstd)
+    ond_corrs[m,3] <- test$estimate
+    ond_corrs[m,4] <- test$p.value
+}
+jfm_sub <- subset(clim[25:723,], month == c(1,2,3))
+jfm_sub$year <- (jfm_sub$year - 1)
+jfm_mean <- jfm_sub %>% group_by(year) %>% summarise(rad = mean(rad, na.rm=TRUE), precip = sum(precip, na.rm=TRUE), temp = mean(temp, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), rh = mean(rh, na.rm=TRUE))
+jfm_corrs <- data.frame(Clim=colnames(jfm_mean[,-1]), Month=c("JFM"), Corr="", p="")
+for (param in c(2:ncol(jfm_mean))){
+    m = param-1
+    test <- cor.test(jfm_mean[[param]], trimMRD$mrdstd)
+    jfm_corrs[m,3] <- test$estimate
+    jfm_corrs[m,4] <- test$p.value
+}
+son_sub <- subset(clim[21:722,], month == c(9,10,11))
+son_mean <- son_sub %>% group_by(year) %>% summarise(rad = mean(rad, na.rm=TRUE), precip = sum(precip, na.rm=TRUE), temp = mean(temp, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), rh = mean(rh, na.rm=TRUE))
+son_corrs <- data.frame(Clim=colnames(son_mean[,-1]), Month=c("SON"), Corr="", p="")
+for (param in c(2:ncol(son_mean))){
+    m = param-1
+    test <- cor.test(son_mean[[param]], trimMRD$mrdstd)
+    son_corrs[m,3] <- test$estimate
+    son_corrs[m,4] <- test$p.value
+}
+sf_sub <- subset(clim[25:722,], month == c(1,2))
+sf_sub$year <- (sf_sub$year - 1)
+full_sub <- rbind(sf_sub, subset(clim[13:722,], month == c(9,10,11,12)))
+full_mean <- full_sub %>% group_by(year) %>% summarise(rad = mean(rad, na.rm=TRUE), precip = sum(precip, na.rm=TRUE), temp = mean(temp, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), rh = mean(rh, na.rm=TRUE))
+full_corrs <- data.frame(Clim=colnames(full_mean[,-1]), Month=c("SONDJF"), Corr="", p="")
+for (param in c(2:ncol(full_mean))){
+    m = param-1
+    test <- cor.test(full_mean[[param]], trimMRD$mrdstd)
+    full_corrs[m,3] <- test$estimate
+    full_corrs[m,4] <- test$p.value
+}
+
+seas_corrs <- rbind(son_corrs, ond_corrs,ndj_corrs,djf_corrs,jfm_corrs, full_corrs)
 seas_corrs$Corr <- as.numeric(seas_corrs$Corr)
 seas_corrs$p <- as.numeric(seas_corrs$p)
 ```
 
 
-Plot doesn't work
+
 ```{r}
 seas_corrs$Month <- factor(seas_corrs$Month, levels=unique(seas_corrs$Month))
-gg <- ggplot(seas_corrs, aes(x=Month, y=Clim, fill=Corr)) + geom_tile(color="white", size=0.1) + scale_fill_viridis(name="# Events") + coord_equal() + labs(x=NULL, y=NULL, title="Seas")+geom_point(data=seas_corrs[seas_corrs$p<0.05,])
+gg <- ggplot(seas_corrs, aes(x=Month, y=Clim, fill=Corr)) + 
+geom_tile(color="white", size=0.1) +
+scale_fill_viridis(name="Pearson's r", breaks=c(-0.5,-0.25,0,0.25,0.5), limits=c(-0.6,0.6)) + 
+coord_equal() +
+labs(x=NULL, y=NULL, title="Ring Width Correlations")+
+scale_y_discrete(labels=c("Precipitation","Solar Radiation","RH","Temp","VPD"))+
+geom_point(data=seas_corrs[seas_corrs$p<0.05,])
+png(file="rwdcorr.png")
 gg
+dev.off()
 ```
 
 ```{r}
+dec_sub <- subset(clim[25:722,], month == c(1,2))
+dec_sub$year <- (dec_sub$year - 1)
+djf_sub <- rbind(dec_sub, subset(clim[13:722,], month == 12))
+djf_mean <- djf_sub %>% group_by(year) %>% summarise(rad = mean(rad, na.rm=TRUE), precip = sum(precip, na.rm=TRUE), temp = mean(temp, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), rh = mean(rh, na.rm=TRUE))
+djf_corrs <- data.frame(Clim=colnames(djf_mean[,-1]), Month=c("DJF"), Corr="", p="")
+for (param in c(2:ncol(djf_mean))){
+    m = param-1
+    test <- cor.test(djf_mean[[param]], sd_vals)
+    djf_corrs[m,3] <- test$estimate
+    djf_corrs[m,4] <- test$p.value
+}
+nov_sub <- subset(clim[25:722,], month == 1)
+nov_sub$year <- (nov_sub$year - 1)
+ndj_sub <- rbind(nov_sub, subset(clim[13:722,], month == c(11,12)))
+ndj_mean <- ndj_sub %>% group_by(year) %>% summarise(rad = mean(rad, na.rm=TRUE), precip = sum(precip, na.rm=TRUE), temp = mean(temp, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), rh = mean(rh, na.rm=TRUE))
+ndj_corrs <- data.frame(Clim=colnames(ndj_mean[,-1]), Month=c("NDJ"), Corr="", p="")
+for (param in c(2:ncol(ndj_mean))){
+    m = param-1
+    test <- cor.test(ndj_mean[[param]], sd_vals)
+    ndj_corrs[m,3] <- test$estimate
+    ndj_corrs[m,4] <- test$p.value
+}
+ond_sub <- subset(clim[13:722,], month == c(10,11,12))
+ond_mean <- ond_sub %>% group_by(year) %>% summarise(rad = mean(rad, na.rm=TRUE), precip = sum(precip, na.rm=TRUE), temp = mean(temp, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), rh = mean(rh, na.rm=TRUE))
+ond_corrs <- data.frame(Clim=colnames(ond_mean[,-1]), Month=c("OND"), Corr="", p="")
+for (param in c(2:ncol(ond_mean))){
+    m = param-1
+    test <- cor.test(ond_mean[[param]], sd_vals)
+    ond_corrs[m,3] <- test$estimate
+    ond_corrs[m,4] <- test$p.value
+}
+jfm_sub <- subset(clim[25:723,], month == c(1,2,3))
+jfm_sub$year <- (jfm_sub$year - 1)
+jfm_mean <- jfm_sub %>% group_by(year) %>% summarise(rad = mean(rad, na.rm=TRUE), precip = sum(precip, na.rm=TRUE), temp = mean(temp, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), rh = mean(rh, na.rm=TRUE))
+jfm_corrs <- data.frame(Clim=colnames(jfm_mean[,-1]), Month=c("JFM"), Corr="", p="")
+for (param in c(2:ncol(jfm_mean))){
+    m = param-1
+    test <- cor.test(jfm_mean[[param]], sd_vals)
+    jfm_corrs[m,3] <- test$estimate
+    jfm_corrs[m,4] <- test$p.value
+}
+son_sub <- subset(clim[21:722,], month == c(9,10,11))
+son_mean <- son_sub %>% group_by(year) %>% summarise(rad = mean(rad, na.rm=TRUE), precip = sum(precip, na.rm=TRUE), temp = mean(temp, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), rh = mean(rh, na.rm=TRUE))
+son_corrs <- data.frame(Clim=colnames(son_mean[,-1]), Month=c("SON"), Corr="", p="")
+for (param in c(2:ncol(son_mean))){
+    m = param-1
+    test <- cor.test(son_mean[[param]], sd_vals)
+    son_corrs[m,3] <- test$estimate
+    son_corrs[m,4] <- test$p.value
+}
+sf_sub <- subset(clim[25:722,], month == c(1,2))
+sf_sub$year <- (sf_sub$year - 1)
+full_sub <- rbind(sf_sub, subset(clim[13:722,], month == c(9,10,11,12)))
+full_mean <- full_sub %>% group_by(year) %>% summarise(rad = mean(rad, na.rm=TRUE), precip = sum(precip, na.rm=TRUE), temp = mean(temp, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), rh = mean(rh, na.rm=TRUE))
+full_corrs <- data.frame(Clim=colnames(full_mean[,-1]), Month=c("SONDJF"), Corr="", p="")
+for (param in c(2:ncol(full_mean))){
+    m = param-1
+    test <- cor.test(full_mean[[param]], sd_vals)
+    full_corrs[m,3] <- test$estimate
+    full_corrs[m,4] <- test$p.value
+}
+
+seas_corrs <- rbind(son_corrs, ond_corrs,ndj_corrs,djf_corrs,jfm_corrs, full_corrs)
+seas_corrs$Corr <- as.numeric(seas_corrs$Corr)
+seas_corrs$p <- as.numeric(seas_corrs$p)
 ```
+
+```{r}
+seas_corrs$Month <- factor(seas_corrs$Month, levels=unique(seas_corrs$Month))
+gg <- ggplot(seas_corrs, aes(x=Month, y=Clim, fill=Corr)) + 
+geom_tile(color="white", size=0.1) +
+scale_fill_viridis(name="Pearson's r", breaks=c(-0.5,-0.25,0,0.25,0.5), limits=c(-0.6,0.6)) + 
+coord_equal() +
+labs(x=NULL, y=NULL, title="18O SD Correlations")+
+scale_y_discrete(labels=c("Precipitation","Solar Radiation","RH","Temp","VPD"))+
+geom_point(data=seas_corrs[seas_corrs$p<0.05,])
+png(file="sdcorr.png")
+gg
+dev.off
+```
+
+```{r}
+plot(ond_mean$rad)
+```
+
+
+```{r}
+plot(full_mean$temp, sd_vals)
+```
+
 
 
 ```{r}
@@ -903,14 +1311,14 @@ library(boot)
 
 ci.func <- function(y){
   y <- y[!is.na(y)]
-  mean.fun <- function(y,i)
+  med.fun <- function(y,i)
   {
-    m = mean(y[i])
+    m = median(y[i])
     n = length(i)
     v =(n-1)*var(y[i])/n^2
     c(m,v)
   }
-  y.boot = boot(y, mean.fun, R=1000)
+  y.boot = boot(y, med.fun, R=1000)
   y.ci=boot.ci(y.boot, conf = 0.95, type = 'basic')
   y.ci=y.ci$basic[c(4,5)]
   names(y.ci)=c('lower','upper')
@@ -918,14 +1326,14 @@ ci.func <- function(y){
 }
 ci.func50 <- function(y){
   y <- y[!is.na(y)]
-  mean.fun <- function(y,i)
+  med.fun <- function(y,i)
   {
-    m = mean(y[i])
+    m = median(y[i])
     n = length(i)
     v =(n-1)*var(y[i])/n^2
     c(m,v)
   }
-  y.boot = boot(y, mean.fun, R=1000)
+  y.boot = boot(y, med.fun, R=1000)
   y.ci=boot.ci(y.boot, conf = 0.50, type = 'basic')
   y.ci=y.ci$basic[c(4,5)]
   names(y.ci)=c('lower','upper')
@@ -946,23 +1354,90 @@ ci$year <- rownames(ci)
 ci50 <- as.data.frame(t(apply(tab, 1, ci.func50)))
 ci$up.tight <- ci50$upper
 ci$low.tight <- ci50$lower
+ci$year <- as.numeric(ci$year)
+ci$trumed <- std_summary
+```
+
+```{r}
+lm_18O<- lm(trumed~year, data=ci)
+```
+
+```{r}
+summary(lm_18O)
 ```
 
 
-
 ```{r}
-p<-ggplot(data=ci, aes(x=year, y=med, group=1)) + 
-  geom_point() + 
-  geom_line()+
-  geom_ribbon(aes(ymin=lower, ymax=upper), linetype=2, alpha=0.3)+
-  geom_ribbon(aes(ymin=low.tight, ymax=up.tight), linetype=2, alpha=0.7)
+p<-ggplot(data=ci, aes(x=year, group=1)) +
+  geom_line(aes(y = trumed), color="steelblue" )+
+  
+  geom_ribbon(aes(ymin=lower, ymax=upper, fill="95% confidence interval of median d18O"), linetype=2, alpha=0.3)+
+  geom_line(aes(y=med),size=2, col="darkslategrey")+
+  geom_abline(intercept= lm_18O$coefficients[1], slope=lm_18O$coefficients[2], col="red")+
+  labs(y= "KBP δ18O (‰)", x = "Year")+
+  scale_x_continuous(breaks=seq(1960,2020,10))+
+  scale_fill_manual("",values="darkgreen")+
+  theme(
+    text = element_text(size=20),
+    legend.position = c(.95, .05),
+    legend.justification = c("right", "bottom"),
+    legend.box.just = "right",
+    legend.margin = margin(0,5,5, 5)
+    )+
+  scale_linetype(name = NULL)
+png(filename="o18series.png", height=700, width=1200)
 p
+dev.off()
+```
+
+CARBON:
+
+```{r}
+splineC <- ffcsaps(y= c13_summary, x=c(1960:2018), nyrs=10, f=0.9)
+```
+
+
+```{r}
+ciC <- as.data.frame(t(apply(new_c13[,-4], 1, ci.func)))
+ciC$med <- as.numeric("")
+ciC$med <- splineC
+ciC$year <- rownames(ciC)
+ciC50 <- as.data.frame(t(apply(new_c13[,-4], 1, ci.func50)))
+ciC$up.tight <- ciC50$upper
+ciC$low.tight <- ciC50$lower
+ciC$year <- as.numeric(ciC$year)
+ciC$trumed <- c13_summary
 ```
 
 ```{r}
-ggplot(ci, aes(year, group=1))+
-geom_ribbon(aes(ymin = lower, ymax = upper), fill = "grey70") +
-  geom_line(aes(y = med))
+lm_13C<- lm(trumed~year, data=ciC)
+```
+
+```{r}
+summary(lm_13C)
+```
+
+
+```{r}
+p<-ggplot(data=ciC, aes(x=year, group=1)) +
+  geom_line(aes(y = trumed), color="steelblue" )+
+  geom_ribbon(aes(ymin=lower, ymax=upper, fill="95% confidence interval of median d13C"), linetype=2, alpha=0.3)+
+    geom_line(aes(y=med),size=2, col="darkslategrey")+
+  geom_abline(intercept= lm_13C$coefficients[1], slope=lm_13C$coefficients[2], col="red")+
+  labs(y= "KBP δ13C (‰)", x = "Year")+
+  scale_x_continuous(breaks=seq(1960,2020,10))+
+  scale_fill_manual("",values="darkgreen")+
+  theme(
+    text = element_text(size=20),
+    legend.position = c(.95, .95),
+    legend.justification = c("right", "top"),
+    legend.box.just = "right",
+    legend.margin = margin(0,5,5, 5)
+    )+
+  scale_linetype(name = NULL)
+png(filename="c13series.png", height=700, width=1200)
+p
+dev.off()
 ```
 
 
@@ -1065,30 +1540,71 @@ plot(std_summary, c13_summary)
 ```
 
 ```{r}
-dual_comp <- data.frame(o18 = std_summary, c13 = c13_summary, precip=ond_mean$precip, rh = ond_mean$rh, vpd=ond_mean$vpd)
+nov_sub <- subset(clim[25:722,], month == 1)
+nov_sub$year <- (nov_sub$year - 1)
+ondj_sub <- rbind(nov_sub, subset(clim[13:722,], month == c(10,11,12)))
+ondj_mean <- ondj_sub %>% group_by(year) %>% summarise(rad = mean(rad, na.rm=TRUE), precip = sum(precip, na.rm=TRUE), temp = mean(temp, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), vpd = mean(vpd, na.rm=TRUE), rh = mean(rh, na.rm=TRUE))
+```
+
+
+```{r}
+dual_comp <- data.frame(o18 = std_summary, c13 = c13_summary, precip=ondj_mean$precip, rh = ondj_mean$rh, vpd=ondj_mean$vpd, temp=ondj_mean$temp)
 ```
 
 ```{r}
+cor.test(dual_comp$o18, dual_comp$c13)
+```
+
+```{r}
+lm_dual <- lm(c13~o18, data=dual_comp)
+summary(lm_dual)
+```
+
+
+```{r}
+png(filename="dualcomp.png", height=350, width=600)
 ggplot(dual_comp, aes(x=o18, y=c13))+
-  geom_point(aes(col=rh))
-```
-
-```{r}
-minRH <- dual_comp[dual_comp$rh < 57,]
-maxVPD <- dual_comp[dual_comp$vpd > 5.3,]
-```
-
-```{r}
-ggplot(maxVPD, aes(x=o18, y=c13))+
-  geom_point(aes(col=vpd))
+  geom_point(aes(col=vpd))+
+  scale_color_viridis()+
+  geom_abline(intercept= lm_dual$coefficients[1], slope=lm_dual$coefficients[2], col="red")+
+ labs(y= "KBP δ13C (‰)", x = "KBP δ18O (‰)")+
+  labs(
+         colour = "VPD"
+        )
+dev.off()
 ```
 
 
+
+
 ```{r}
-datRas <- brick("rasters/ERA5_t2m.gri")
+ggplot(dual_comp, aes(x=o18, y=vpd))+
+  geom_point(aes(col=vpd))+
+ labs(y= "KBP δ13C", x = "KBP δ18O")+
+  labs(
+         colour = "VPD"
+        )
+```
+
+```{r}
+minRH <- dual_comp[dual_comp$rh < 54,]
+minPre <- dual_comp[dual_comp$precip < 4,]
+maxVPD <- dual_comp[dual_comp$vpd > 7,]
+maxtemp <- dual_comp[dual_comp$temp > 13,]
+```
+
+```{r}
+ggplot(maxtemp, aes(x=o18, y=c13))+
+  geom_point(aes(col=temp))
+```
+
+
+```{r}
+datRas <- brick("rasters/ERA5_precip.gri")
 datC <- subset(datRas, 121:828)
 sel_test <- names(datC)[substr(names(datC), 7, 8) %in% c("01","02")]
 ```
+
 
 ```{r}
 datC <- subset(datRas, 123:830)
@@ -1110,15 +1626,55 @@ datX <- subset(datC, sel_x, value=T) #subsets the dataset of only those that are
 
 s <- stack(datY, datX)
 b <- brick(s)
-writeRaster(b,"ERA_t2m_seas")
+writeRaster(b,"ERA_evap_seas")
 ```
+
+```{r}
+datRas <- brick("rasters/ERA5_precip.gri")
+datC <- subset(datRas, 121:827)
+sel_test <- names(datC)[substr(names(datC), 7, 8) %in% c("01","02","03")]
+datC <- subset(datRas, 133:831)
+```
+
+
+```{r}
+sel_y <- names(datC)[substr(names(datC), 7, 8) %in% c("01","02","03")] #Creates true/false field of rasters for that yr
+#use that index to subset the raster brick
+datY <- subset(datC, sel_y, value=T) #subsets the dataset of only those that are true
+names(datY) <- sel_test 
+```
+
+```{r}
+datY$
+```
+
+
+
+
+
+
+
+
+
+Run this if limiting to a smaller season:
+```{r}
+datX <- brick("ERA_evap_seas.gri")
+
+sel_x <- names(datX)[substr(names(datX), 7, 8) %in% c("09","10","11")] #Creates true/false field of rasters for that year
+#use that index to subset the raster brick
+datC <- subset(datX, sel_x, value=T) #subsets the dataset of only those that are true
+```
+
+
+
+
 
 
 
 This suposedly turns your brick into annual (seasonal) averages. However it must be edited
 ```{r}
 rasYrs <- as.character(1961:2018)
-datC <- brick("ERA_t2m_seas")
+datC <- brick("ERA_precip_seas")
 sel_y <- names(datC)[substr(names(datC), 2, 5) %in% "1960"]
 datY <- subset(datC, sel_y, value=T)
 s <- stackApply(datY, indices =  rep(1,nlayers(datY)), fun = "mean", na.rm = T)
@@ -1130,12 +1686,18 @@ mean <- stackApply(datY, indices =  rep(1,nlayers(datY)), fun = "mean", na.rm = 
 s <- stack(s, mean)
 }
 b <- brick(s)
-writeRaster(b,"t2m_sept_feb_mean")
+writeRaster(b,"precip_sept_feb_mean")
 ```
 
 
 Manual if tool doesn't work:
 Must edit while using!!!
+
+```{r}
+datC <- brick(datY)
+```
+
+
 
 ```{r}
 sel_y <- names(datC)[substr(names(datC), 2, 5) %in% "2010"]
@@ -1176,23 +1738,58 @@ s8 <- stackApply(datY, indices =  rep(1,nlayers(datY)), fun = "mean", na.rm = T)
 names(s8) <- "X2018"
 
 
-
 s <- stack(s,s0,s1,s2,s3,s4,s5,s6,s7,s8)
 ```
-sel_y <- names(datC)[substr(names(datC), 2, 5) %in% "2009"]
+sel_y <- names(datC)[substr(names(datC), 2, 5) %in% "2019"]
 datY <- subset(datC, sel_y, value=T)
 s9 <- stackApply(datY, indices =  rep(1,nlayers(datY)), fun = "mean", na.rm = T)
-names(s9) <- "X2009"
+names(s9) <- "X2019"
+```{r}
+s$
+```
+
+
+
 ```{r}
 b <- brick(s)
-writeRaster(b,"t2m_sept_feb_mean")
+writeRaster(b,"precip_jan_mar_mean")
 ```
+
+
+
+```{r}
+mtrd <-	cbind(-41.84, 145.53)
+mrd_points <- SpatialPoints(coords = mtrd, proj4string = crs("+proj=longlat +datum=WGS84 +no_defs"))
+
+xy <- raster::extract(brick, cbind(145.53, -41.84), method="bilinear", df=TRUE)
+```
+
+```{r}
+precippts <- t(xy[-1])
+```
+
+
+```{r}
+plot(precippts, std_summary, main="ERA5 vs. 18O")
+cor.test(precippts, std_summary)
+```
+
+```{r}
+plot(precippts, jfm_mean$precip, main = "ERA5 vs. SILO")
+cor.test(precippts, jfm_mean$precip)
+```
+
+```{r}
+plot(jfm_mean$precip, std_summary, main = "SILO vs. 18O")
+cor.test(jfm_mean$precip, std_summary)
+```
+
 
 
 Correlate:
 
 ```{r}
-datY <- brick("t2m_sept_feb_mean.gri")
+datY <- brick("evap_sep_nov_mean.gri")
 ar.datY <- as.array(datY)
 
 z <- apply(ar.datY, 1:2, rcorr, std_summary, type="pearson")
@@ -1210,11 +1807,11 @@ library(abind)
 a <- abind(l, along=3)
 
 r <- brick(a, xmn=0.125, xmx=180.125, ymn=-89.875, ymx=0.125, crs=CRS("+proj=longlat +datum=WGS84"))
-writeRaster(r, paste0("t2m_corr_sep_feb"))
+writeRaster(r, paste0("evap_corr_sep_nov"))
 ```
 
 ```{r}
-resbrick <- brick("t2m_corr_sep_feb.gri")
+resbrick <- brick("evap_corr_sep_nov.gri")
 ```
 
 ```{r}
@@ -1222,265 +1819,138 @@ plot(resbrick$layer.1)
 ```
 
 
+
+```{r}
+world_shp <- read_sf("coasts/ne_10m_coastline.shp")
+world_outline <- as(st_geometry(world_shp), Class="Spatial")
+```
+
+```{r}
+full <- brick("rasters/results/seasonal/precip_corr_sep_feb.gri")
+sepnov <- brick("rasters/results/seasonal/precip_corr_sep_nov.gri")
+octdec <- brick("rasters/results/seasonal/precip_corr_oct_dec.gri")
+novjan <- brick("rasters/results/seasonal/precip_corr_nov_jan.gri")
+decfeb <- brick("rasters/results/seasonal/precip_corr_dec_feb.gri")
+```
+
+```{r}
+e <- extent(110, 160, -50, -20)
+cropped <- crop(decfeb, e)	
+corrRas <- cropped$layer.1
+sigRas <- cropped$layer.2
+sigRas[sigRas > 0.05] <- NA #mask out insignificant values
+sigRas[sigRas == 0] <- NA
+masked <- raster::mask(corrRas, sigRas)
+```
+
+```{r}
+masked
+```
+
+
+```{r}
+colr <- colorRampPalette(brewer.pal(9, 'RdBu'))
+levelplot(masked, margin=FALSE, xlab="Longitude", ylab="Latitude", main="Precipitation ~ d18O", pretty=FALSE, col.regions=colr, at=seq(-0.6, 0.6, 0.1))+
+  latticeExtra::layer(sp.lines(world_outline))
+```
+
+
+
+
+
+```{r}
+mean(as.matrix(new_c13[,-4]), na.rm=TRUE)
+```
+
+
+```{r}
+sd_C <- apply(new_c13[,-4], 1, sd, na.rm=T)
+mean(sd_C)
+```
+
+
+```{r}
+citation("splitr")
+```
+
+
+```{r}
+rwl.stats(tab)
+```
+
+```{r}
+rwl.report(tab)
+```
+
+```{r}
+rwl.report(new_c13[,-4])
+```
+
+```{r}
+rwi.stats(tab)
+```
+
+```{r}
+mean(glk(tab)$glk_mat, na.rm=TRUE)
+```
+
+```{r}
+rwi.stats.running(tab, window.length=10)
+```
+
+```{r}
+MRDmaster <- read.rwl("FullMasterSN.txt")
+```
+
+```{r}
+MRD_std <- scale(MRDmaster)
+MRD_dfstd<- as.data.frame(MRD_std)
+detrended_MRD <- detrend(MRD_dfstd, method="Spline")
+```
+
+
+```{r}
+ci3 <- as.data.frame(t(apply(MRD_dfstd[2400:2458,], 1, ci.func)))
+ci3$med <- as.numeric("")
+ci3$med <- trimMRD$mrdstd
+ci3$year <- rownames(ci3)
+```
+
+```{r}
+ci3
+```
+
+
+```{r}
+lm_rwd<- lm(med~year, data=ci3)
+```
+
+```{r}
+ci3
+```
+
+
+```{r}
+p<-ggplot(data=ci3, aes(x=year, group=1)) +
+  geom_ribbon(aes(ymin=lower, ymax=upper, fill="95% confidence interval of median ring width"), linetype=2, alpha=0.3)+
+  geom_line(aes(y=med),size=2, col="darkslategrey")+
+  geom_abline(intercept= lm_rwd$coefficients[1], slope=lm_rwd$coefficients[2], col="red")+
+  labs(y= "KBP Ring Width", x = "Year")+
+  scale_x_continuous(breaks=seq(1960,2020,10))+
+  scale_fill_manual("",values="darkgreen")+
+  theme(
+    legend.position = c(.95, .05),
+    legend.justification = c("right", "bottom"),
+    legend.box.just = "right",
+    legend.margin = margin(0,5,5, 5)
+    )+
+  scale_linetype(name = NULL)
+
+p
+
+```
+
 END HERE!
-
-
-
-
-
-
-
-
-
-
-
-Create yearly averages
-
-Combine all of the ERA data together into a single stack (AND CROP TO 1958 - 2013! Change this if needed)
-
-
-
-New function
-subset raster brick to years (60-18, then 61-19)
-Extract All raster layers for a particular month (Jan 1960, 61, etc)
-Turn into array
-Correlate as if it's a time series with the o18 (see below?)
-
-Alternatively, extract just a growing season then correlate by year (using calc which doesn't seem to be working)
-
-```{r}
-datC <- brick("rasters/ERA5_t2m.gri")
-datC_curr <- subset(datC, 121:828)
-datC_next <- subset(datC, 133:840)
-
-month <- "03" # Year you want to subset
-
-sel_y <- names(datC_next)[substr(names(datC_next), 7, 8) %in% month] #Creates true/false field of rasters for that yr
-#use that index to subset the raster brick
-datY <- subset(datC_next, sel_y, value=T) #subsets the dataset of only those that are true
-tail(names(datY), 30)
-ar.datY <- as.array(datY)
-```
-
-This works as is. Just change the parameter being used
-
-```{r}
-datC <- brick("rasters/ERA5_RH.gri")
-  datC_curr <- subset(datC, 121:828)
-  datC_next <- subset(datC, 133:840)
-  
-# Curr yr
-  
-for (month in c("06","07","08","09","10","11","12")){
-sel_y <- names(datC_curr)[substr(names(datC_curr), 7, 8) %in% month] #Creates true/false field of rasters for that year
-#use that index to subset the raster brick
-datY <- subset(datC_curr, sel_y, value=T) #subsets the dataset of only those that are true
-ar.datY <- as.array(datY)
-
-z <- apply(ar.datY, 1:2, rcorr, std_summary, type="pearson")
-corr = array(0, dim=c(360,720) )
-sig = array(0, dim=c(360,720) )
-for (x in 1:259200)
-{
-corr[x] <- z[[x]][[1]][2]
-sig[x] <- z[[x]][[3]][2]
-}
-
-l <- list(corr, sig)
-a <- do.call(rbind, l)
-library(abind)
-a <- abind(l, along=3)
-
-r <- brick(a, xmn=0.125, xmx=180.125, ymn=-89.875, ymx=0.125, crs=CRS("+proj=longlat +datum=WGS84"))
-writeRaster(r, paste0("RH_corr_test_curr_", month))
-
-}
-  
-# Next yr  
-  
-for (month in c("01","02","03","04","05")){
-sel_y <- names(datC_next)[substr(names(datC_next), 7, 8) %in% month] #Creates true/false field of rasters for that yr
-#use that index to subset the raster brick
-datY <- subset(datC_next, sel_y, value=T) #subsets the dataset of only those that are true
-ar.datY <- as.array(datY)
-
-z <- apply(ar.datY, 1:2, rcorr, std_summary, type="pearson")
-corr = array(0, dim=c(360,720) )
-sig = array(0, dim=c(360,720) )
-for (x in 1:259200)
-{
-corr[x] <- z[[x]][[1]][2]
-sig[x] <- z[[x]][[3]][2]
-}
-
-l <- list(corr, sig)
-a <- do.call(rbind, l)
-library(abind)
-a <- abind(l, along=3)
-
-r <- brick(a, xmn=0.125, xmx=180.125, ymn=-89.875, ymx=0.125, crs=CRS("+proj=longlat +datum=WGS84"))
-writeRaster(r, paste0("RH_corr_test_next_", month))
-
-}
-```
-
-```{r}
-fill_gnip <- read.csv("CG_GNIP_filled.csv")
-fill_gnip$Date <- parse_date_time(fill_gnip$Date, "mdy")
-fill_gnip$month <- month(fill_gnip$Date)
-fill_gnip$year <- year(fill_gnip$Date)
-```
-
-```{r}
-datC <- brick("rasters/ERA5_RH.gri")
-testbrick <- subset(datC, 349:636)
-```
-
-
-```{r}
-datC <- brick("rasters/ERA5_t2m.gri")
-  datC_curr <- subset(datC, 349:636)
-  datC_next <- subset(datC, 361:648)
-  
-# Curr yr
-  
-for (month in c("06","07","08","09","10","11","12")){
-sel_y <- names(datC_curr)[substr(names(datC_curr), 7, 8) %in% month] #Creates true/false field of rasters for that year
-#use that index to subset the raster brick
-datY <- subset(datC_curr, sel_y, value=T) #subsets the dataset of only those that are true
-ar.datY <- as.array(datY)
-
-z <- apply(ar.datY, 1:2, rcorr, fill_gnip$O18, type="pearson")
-corr = array(0, dim=c(360,720) )
-sig = array(0, dim=c(360,720) )
-for (x in 1:259200)
-{
-corr[x] <- z[[x]][[1]][2]
-sig[x] <- z[[x]][[3]][2]
-}
-
-l <- list(corr, sig)
-a <- do.call(rbind, l)
-library(abind)
-a <- abind(l, along=3)
-
-r <- brick(a, xmn=0.125, xmx=180.125, ymn=-89.875, ymx=0.125, crs=CRS("+proj=longlat +datum=WGS84"))
-writeRaster(r, paste0("t2m_corr_gnip_curr_", month))
-
-}
-  
-# Next yr  
-  
-for (month in c("01","02","03","04","05")){
-sel_y <- names(datC_next)[substr(names(datC_next), 7, 8) %in% month] #Creates true/false field of rasters for that yr
-#use that index to subset the raster brick
-datY <- subset(datC_next, sel_y, value=T) #subsets the dataset of only those that are true
-ar.datY <- as.array(datY)
-
-z <- apply(ar.datY, 1:2, rcorr, std_summary, type="pearson")
-corr = array(0, dim=c(360,720) )
-sig = array(0, dim=c(360,720) )
-for (x in 1:259200)
-{
-corr[x] <- z[[x]][[1]][2]
-sig[x] <- z[[x]][[3]][2]
-}
-
-l <- list(corr, sig)
-a <- do.call(rbind, l)
-library(abind)
-a <- abind(l, along=3)
-
-r <- brick(a, xmn=0.125, xmx=180.125, ymn=-89.875, ymx=0.125, crs=CRS("+proj=longlat +datum=WGS84"))
-writeRaster(r, paste0("t2m_corr_gnip_next_", month))
-
-}
-```
-
-
-
-```{r}
-plot(raster("rasters/results/precip/precip_corr_test_next_01.gri"))
-```
-
-
-
-```{r}
-apply(ar.datY, 1:2, rcorr, std_summary, type="pearson")
-```
-
-This is in list form basically. The cells go like this
-
-1   5   9   13  17
-2   6   10  14  18
-3   7   11  15  19
-4   8   12  16  20
-
-```{r}
-z <- apply(ar.datY, 1:2, rcorr, std_summary, type="pearson")
-```
-
-correlation = z[[x]][[1]][2]
-significance = z[[x]][[3]][2]
-
-Up next: create corr and sig arrays
-
-Change (67,89) to new extent:
-
-corr = array(0, dim=c(360,720) )
-sig = array(0, dim=c(360,720) )
-```{r}
-corr = array(0, dim=c(18,20) )
-sig = array(0, dim=c(18,20) )
-```
-
-Change 5963 to number of cells in new extent (ensure routing is correct):
-for (x in 1:259200)
-Must transpose corr and sig to get right dimensions
-```{r}
-for (x in 1:360)
-{
-corr[x] <- z[[x]][[1]][2]
-sig[x] <- z[[x]][[3]][2]
-}
-```
-
-
-
-
-Make it the right structure(?)
-
-```{r}
-l <- list(corr, sig)
-a <- do.call(rbind, l)
-library(abind)
-a <- abind(l, along=3)
-a
-```
-
-Change this brick call to get correct resolution, extent, etc
-```{r}
-r <- brick(a, xmn=0.125, xmx=180.125, ymn=-89.875, ymx=0.125, crs=CRS("+proj=longlat +datum=WGS84"))
-r
-```
-0.125, 180.125, -89.875, 0.125  (xmin, xmax, ymin, ymax)
-```{r}
-plot(r)
-```
-
-Create raster of corrs:
-
-```{r}
-writeRaster(r, "o18_prcp_corr")
-```
-
-
-
-
-
-
-
-
 
 
 
