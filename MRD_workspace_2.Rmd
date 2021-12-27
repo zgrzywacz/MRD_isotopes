@@ -105,6 +105,28 @@ for (i in 1:732){
 ```
 
 
+```{r}
+gnip_filled <- read.csv("CG_GNIP_filled.csv")
+gnip_filled$Date <- parse_date_time(gnip_filled$Date, "mdy")
+gnip_filled$month <- month(gnip_filled$Date)
+gnip_filled$year <- year(gnip_filled$Date)
+for (i in c(1:288)){
+if (gnip_filled$month[i] < 9){
+  gnip_filled$seas.year[i] = (gnip_filled$year[i] - 1)
+}
+else{
+  gnip_filled$seas.year[i] = gnip_filled$year[i]
+}
+}
+```
+
+```{r}
+annual_gnip <- subset(gnip_filled, month == c(1,2,9,10,11,12))[-(1:2), , drop = FALSE]
+gnip_summary <- annual_gnip %>% group_by(seas.year) %>% summarise(mean = mean(O18, na.rm=TRUE))
+gnip_summary
+```
+
+
 Visualize 18O series
 
 ```{r}
@@ -1373,16 +1395,22 @@ p<-ggplot(data=ci, aes(x=year, group=1)) +
   
   geom_ribbon(aes(ymin=lower, ymax=upper, fill="95% confidence interval of median d18O"), linetype=2, alpha=0.3)+
   geom_line(aes(y=med),size=2, col="darkslategrey")+
-  geom_abline(intercept= lm_18O$coefficients[1], slope=lm_18O$coefficients[2], col="red")+
   labs(y= "KBP δ18O (‰)", x = "Year")+
   scale_x_continuous(breaks=seq(1960,2020,10))+
   scale_fill_manual("",values="darkgreen")+
   theme(
     text = element_text(size=20),
-    legend.position = c(.95, .05),
+    legend.position = c(.85, .05),
     legend.justification = c("right", "bottom"),
     legend.box.just = "right",
-    legend.margin = margin(0,5,5, 5)
+    legend.margin = margin(0,5,5, 5),
+    panel.background = element_rect(fill = "white",
+                                colour = "white",
+                                size = 0.5, linetype = "solid"),
+  panel.grid.major = element_line(size = 0.5, linetype = 'solid',
+                                colour = "lightgrey"), 
+  panel.grid.minor = element_line(size = 0.25, linetype = 'solid',
+                                colour = "lightgrey")
     )+
   scale_linetype(name = NULL)
 png(filename="o18series.png", height=700, width=1200)
@@ -1429,10 +1457,17 @@ p<-ggplot(data=ciC, aes(x=year, group=1)) +
   scale_fill_manual("",values="darkgreen")+
   theme(
     text = element_text(size=20),
-    legend.position = c(.95, .95),
-    legend.justification = c("right", "top"),
+    legend.position = c(.85, .05),
+    legend.justification = c("right", "bottom"),
     legend.box.just = "right",
-    legend.margin = margin(0,5,5, 5)
+    legend.margin = margin(0,5,5, 5),
+    panel.background = element_rect(fill = "white",
+                                colour = "white",
+                                size = 0.5, linetype = "solid"),
+  panel.grid.major = element_line(size = 0.5, linetype = 'solid',
+                                colour = "lightgrey"), 
+  panel.grid.minor = element_line(size = 0.25, linetype = 'solid',
+                                colour = "lightgrey")
     )+
   scale_linetype(name = NULL)
 png(filename="c13series.png", height=700, width=1200)
@@ -1891,7 +1926,18 @@ rwi.stats(tab)
 ```
 
 ```{r}
-mean(glk(tab)$glk_mat, na.rm=TRUE)
+rwi.stats(new_c13[,-4])
+```
+
+
+
+```{r}
+mean(glk(tab, overlap=10)$glk_mat, na.rm=TRUE)
+```
+
+
+```{r}
+mean(glk(new_c13[,-4], overlap=10)$glk_mat, na.rm=TRUE)
 ```
 
 ```{r}
@@ -1908,6 +1954,11 @@ MRD_dfstd<- as.data.frame(MRD_std)
 detrended_MRD <- detrend(MRD_dfstd, method="Spline")
 ```
 
+```{r}
+detrend.series(MRD_dfstd$MRD619A, method="Spline")
+```
+
+
 
 ```{r}
 ci3 <- as.data.frame(t(apply(MRD_dfstd[2400:2458,], 1, ci.func)))
@@ -1917,16 +1968,7 @@ ci3$year <- rownames(ci3)
 ```
 
 ```{r}
-ci3
-```
-
-
-```{r}
 lm_rwd<- lm(med~year, data=ci3)
-```
-
-```{r}
-ci3
 ```
 
 
@@ -1949,6 +1991,301 @@ p<-ggplot(data=ci3, aes(x=year, group=1)) +
 p
 
 ```
+
+
+```{r}
+o18_var <- apply(tab, MARGIN = 2, sd, na.rm=TRUE)
+o18_means <- apply(tab, MARGIN = 2, mean, na.rm=TRUE)
+
+soildepths <- c(277.5,237.5,591.25,507.5,443.75,372.5,365,335,256.25,356.25)
+canopycovers <- c(83.5,76,79.25,83.25,86.25,34,73.25,80.75,81.25,84.25)
+slope <- c(35,35,20,20,30,28,20,40,35,38)
+dbh <- c(72,75,91,24,86,39,43,65,83,70)
+altitude <- c(936.458,942.727,939.455,939.455,941.111,954.136,952.022,944.875,953.187,942.939)
+o18_appendix_plots <- data.frame(mean = o18_means, sd = o18_var, soil_depth = soildepths, canopy = canopycovers, slope = slope, dbh = dbh, alt = altitude)
+```
+
+```{r}
+plot(soildepths, o18_var)
+plot(canopycovers, o18_var)
+plot(slope, o18_var)
+plot(dbh, o18_var)
+plot(altitude, o18_var)
+```
+
+```{r}
+cor.test(soildepths, o18_var)
+cor.test(canopycovers, o18_var)
+cor.test(slope, o18_var)
+cor.test(dbh, o18_var)
+cor.test(altitude, o18_var)
+```
+
+```{r}
+plot(soildepths, o18_means)
+plot(canopycovers, o18_means)
+plot(slope, o18_means)
+plot(dbh, o18_means)
+plot(altitude, o18_means)
+```
+
+```{r}
+cor.test(soildepths, o18_means)
+cor.test(canopycovers, o18_means)
+cor.test(slope, o18_means)
+cor.test(dbh, o18_means)
+cor.test(altitude, o18_means)
+```
+
+```{r}
+plot(o18_means, o18_var)
+cor.test(o18_means, o18_var)
+```
+
+```{r}
+p1 <- ggplot(o18_appendix_plots, aes(soil_depth, mean))+
+  geom_point(shape=23, color="red")+
+  xlab("Soil Depth (mm)")+
+  ylab("Mean d18OTR")
+p2 <- ggplot(o18_appendix_plots, aes(alt, mean))+
+  geom_point(shape=23, color="blue")+
+  xlab("Altitude (m)")+
+  ylab("Mean d18OTR")
+p3 <- ggplot(o18_appendix_plots, aes(dbh, mean))+
+  geom_point(shape=23, color="green")+
+  xlab("Diameter at Breast Height (cm)")+
+  ylab("Mean d18OTR")
+p4 <- ggplot(o18_appendix_plots, aes(slope, mean))+
+  geom_point(shape=23, color="orange")+
+  xlab("Slope (degrees)")+
+  ylab("Mean d18OTR")
+p5 <- ggplot(o18_appendix_plots, aes(canopy, mean))+
+  geom_point(shape=23, color="purple")+
+  xlab("Canopy Cover (%)")+
+  ylab("Mean d18OTR")
+p6 <- ggplot(o18_appendix_plots, aes(soil_depth, sd))+
+  geom_point(shape=23, color="red")+
+  xlab("Soil Depth (mm)")+
+  ylab("d18OTR Standard Deviation")
+p7 <- ggplot(o18_appendix_plots, aes(alt, sd))+
+  geom_point(shape=23, color="blue")+
+  xlab("Altitude (m)")+
+  ylab("d18OTR Standard Deviation")
+p8 <- ggplot(o18_appendix_plots, aes(dbh, sd))+
+  geom_point(shape=23, color="green")+
+  xlab("Diameter at Breast Height (cm)")+
+  ylab("d18OTR Standard Deviation")
+p9 <- ggplot(o18_appendix_plots, aes(slope, sd))+
+  geom_point(shape=23, color="orange")+
+  xlab("Slope (degrees)")+
+  ylab("d18OTR Standard Deviation")
+p10 <- ggplot(o18_appendix_plots, aes(canopy, sd))+
+  geom_point(shape=23, color="purple")+
+  xlab("Canopy Cover (%)")+
+  ylab("d18OTR Standard Deviation")
+```
+
+```{r}
+library(gridExtra)
+```
+
+```{r}
+png(filename="appendixplots2.png", height=800, width=2000)
+grid.arrange(p1,p2,p3,p4,p5,p6,p7,p8,p9,p10, nrow=2)
+dev.off()
+```
+
+
+
+```{r}
+rwidths <- read.csv("indices_1960_2018.csv")
+rownames(rwidths) <- rwidths[,1]
+rwidths[,1] <- NULL
+```
+
+```{r}
+rowMeans(rwidths, na.rm=TRUE)
+```
+
+```{r}
+library(boot)
+ci.func.mean <- function(y){
+  y <- y[!is.na(y)]
+  med.fun <- function(y,i)
+  {
+    m = mean(y[i])
+    n = length(i)
+    v =(n-1)*var(y[i])/n^2
+    c(m,v)
+  }
+  y.boot = boot(y, med.fun, R=1000)
+  y.ci=boot.ci(y.boot, conf = 0.95, type = 'basic')
+  y.ci=y.ci$basic[c(4,5)]
+  names(y.ci)=c('lower','upper')
+  y.ci
+}
+```
+
+
+```{r}
+ci3 <- as.data.frame(t(apply(rwidths, 1, ci.func.mean)))
+ci3$med <- as.numeric("")
+ci3$med <- trimMRD$mrdstd
+ci3$year <- as.numeric(rownames(ci3))
+```
+
+```{r}
+lm_rwd<- lm(med~year, data=ci3)
+```
+
+rowMeans(rwidths, na.rm=TRUE)
+```{r}
+summary(lm_rwd)
+```
+
+
+```{r}
+p<-ggplot(data=ci3, aes(x=year, group=1)) +
+  theme(
+    text = element_text(size=20),
+    legend.position = c(.85, .05),
+    legend.justification = c("right", "bottom"),
+    legend.box.just = "right",
+    legend.margin = margin(0,5,5, 5),
+    panel.background = element_rect(fill = "white",
+                                colour = "white",
+                                size = 0.5, linetype = "solid"),
+  panel.grid.major = element_line(size = 0.5, linetype = 'solid',
+                                colour = "lightgrey"), 
+  panel.grid.minor = element_line(size = 0.25, linetype = 'solid',
+                                colour = "lightgrey")
+    )+
+  geom_ribbon(aes(ymin=lower, ymax=upper, fill="95% confidence interval of mean ring width"), linetype=2, alpha=0.3)+
+  geom_line(aes(y=med),size=2, col="darkslategrey")+
+  labs(y= "KBP Ring Width", x = "Year")+
+  scale_x_continuous(breaks=seq(1960,2020,10))+
+  scale_fill_manual("",values="darkgreen")+
+  
+  scale_linetype(name = NULL)
+png(filename="rwdseries.png", height=700, width=1200)
+p
+dev.off()
+```
+
+```{r}
+mean(glk(rwidths, overlap=40)$glk_mat, na.rm=TRUE)
+```
+
+```{r}
+rangetest <- apply(tab, 1, range, na.rm=TRUE)
+```
+
+```{r}
+sd(rangetest[2,] - rangetest[1,])
+```
+
+
+GNIP spatial:
+
+
+```{r}
+datY <- brick("rasters/results/seasonal/t2m_sep_nov_mean.gri")
+datY <- subset(datY, 20:43)
+ar.datY <- as.array(datY)
+
+z <- apply(ar.datY, 1:2, rcorr, gnip_summary$mean, type="pearson")
+corr = array(0, dim=c(360,720) )
+sig = array(0, dim=c(360,720) )
+for (x in 1:259200)
+{
+corr[x] <- z[[x]][[1]][2]
+sig[x] <- z[[x]][[3]][2]
+}
+
+l <- list(corr, sig)
+a <- do.call(rbind, l)
+library(abind)
+a <- abind(l, along=3)
+
+r <- brick(a, xmn=0.125, xmx=180.125, ymn=-89.875, ymx=0.125, crs=CRS("+proj=longlat +datum=WGS84"))
+writeRaster(r, paste0("t2m_gnip_corr_sep_nov"))
+```
+
+```{r}
+resbrick <- brick("precip_gnip_corr_sep_nov.gri")
+```
+
+```{r}
+plot(resbrick$layer.1)
+```
+
+
+```{r}
+world_shp <- read_sf("coasts/ne_10m_coastline.shp")
+world_outline <- as(st_geometry(world_shp), Class="Spatial")
+```
+
+```{r}
+full <- brick("precip_gnip_corr_sep_feb.gri")
+sepnov <- brick("t2m_gnip_corr_sep_nov.gri")
+decfeb <- brick("t2m_gnip_corr_dec_feb.gri")
+```
+
+```{r}
+e <- extent(110, 160, -50, -20)
+cropped <- crop(full, e)	
+corrRas <- cropped$layer.1
+sigRas <- cropped$layer.2
+sigRas[sigRas > 0.05] <- NA #mask out insignificant values
+sigRas[sigRas == 0] <- NA
+masked <- raster::mask(corrRas, sigRas)
+```
+
+```{r}
+masked
+```
+
+png(filename="gnip_precip_spatial.png", height=1200, width=1600)
+```{r}
+colr <- colorRampPalette(brewer.pal(9, 'RdBu'))
+
+levelplot(masked, margin=FALSE, xlab="Longitude", ylab="Latitude", main="Correlation (1979 - 2002)", pretty=FALSE, col.regions=colr, at=seq(-0.8, 0.8, 0.1))+
+  latticeExtra::layer(sp.lines(world_outline))
+```
+
+```{r}
+o18_df <- data.frame(std_summary)
+o18_df$std_summary <- as.numeric(o18_df$std_summary)
+```
+
+```{r}
+library(dplyr)
+Poso18 <- as.numeric(rownames(slice_max(o18_df, order_by = std_summary, n=15)))
+Nego18 <- as.numeric(rownames(slice_min(o18_df, order_by = std_summary, n=15)))
+Poso18
+Nego18
+```
+
+```{r}
+gnip_summary
+Posgnip <- slice_max(gnip_summary, order_by = mean, n=6)
+Neggnip <- slice_min(gnip_summary, order_by = mean, n=6)
+Posgnip
+Neggnip
+```
+
+
+
+```{r}
+library(stats)
+acf(std_summary, plot=FALSE)
+```
+
+
+```{r}
+acf(gnip_summary$mean)
+```
+
 
 END HERE!
 

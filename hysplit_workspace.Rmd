@@ -476,6 +476,15 @@ SAMindex$SprSum <- (SAMindex$SPR + SAMindex$SUM)
 ```
 
 ```{r}
+cor.test(SAMindex[4:62,]$SprSum, std_summary)
+```
+
+```{r}
+plot(SAMindex[4:62,]$SprSum, std_summary)
+```
+
+
+```{r}
 library(dplyr)
 PosSAM <- slice_max(SAMindex, order_by = SprSum, n=12)
 NegSAM <- slice_min(SAMindex, order_by = SprSum, n=12)
@@ -555,6 +564,109 @@ levelplot(logCountNeg, margin=FALSE, main="SAM- Log-transformed Trajectory Count
   latticeExtra::layer(sp.lines(world_outline))
 ```
 
+O18 compositing
+Highest O18: 1967 2018 2015 2017 1963 2007 1965 2004 1997 2014 1987 2016 2003 1980 1998
+Lowest O18: 1970 1984 1985 1968 1973 1971 1993 2009 1975 2011 1991 1990 1996 2001 1960
+
+```{r}
+Poso18_traj <- fullDF_splitting[fullDF_splitting$actual_yr %in% Poso18,]
+Nego18_traj <- fullDF_splitting[fullDF_splitting$actual_yr %in% Nego18,]
+```
+
+
+```{r}
+latlons_Pos <-  data.frame(lon=Poso18_traj$lon, lat=Poso18_traj$lat)
+Pos_trajplot <- rasterize(latlons_Pos, r, field=Poso18_traj$receptor, fun=sum)
+count_Pos <- projectRaster(Pos_trajplot, crs = AustProj)
+
+latlons_Neg <-  data.frame(lon=Nego18_traj$lon, lat=Nego18_traj$lat)
+Neg_trajplot <- rasterize(latlons_Neg, r, field=Nego18_traj$receptor, fun=sum)
+count_Neg <- projectRaster(Neg_trajplot, crs = AustProj)
+```
+
+```{r}
+annual_Pos <- Pos_trajplot/15
+annual_Neg <- Neg_trajplot/15
+Pos_anomaly <- annual_Pos - annual_trajplot
+Neg_anomaly <- annual_Neg - annual_trajplot
+```
+
+
+```{r}
+colr <- colorRampPalette(brewer.pal(9, 'RdBu'))
+
+logAnomPos <- log(Pos_anomaly)
+levelplot(Pos_anomaly, margin=FALSE, main="Top 25% δ18O Anomalies",  at=c(-12,-11,-10,-9,-8,-7,-6,-5,-4,-3,-2,-1,0,1,2,3,4,5,6,7,8,9,10,11,12), pretty=FALSE, col.regions=colr, colorkey=list(col=colr)) +
+  latticeExtra::layer(sp.lines(world_outline))
+
+```
+png(filename="hysplit_lowO18_anom.png", height=700, width=1200)
+
+
+```{r}
+colr <- colorRampPalette(brewer.pal(9, 'RdBu'))
+
+logAnomNeg <- log(Neg_anomaly)
+levelplot(Neg_anomaly, margin=FALSE, main="Bottom 25% δ18O Anomalies", at=c(-12,-11,-10,-9,-8,-7,-6,-5,-4,-3,-2,-1,0,1,2,3,4,5,6,7,8,9,10,11,12), pretty=FALSE, col.regions=colr, colorkey=list(col=colr)) +
+  latticeExtra::layer(sp.lines(world_outline))
+
+```
+
+
+GNIP compositing
+Highest GNIP: 97 88 83 87 02 89
+Lowest GNIP: 86 96 90 79 84 99
+
+```{r}
+Posgnip_traj <- fullDF_splitting[fullDF_splitting$actual_yr %in% Posgnip$seas.year,]
+Neggnip_traj <- fullDF_splitting[fullDF_splitting$actual_yr %in% Neggnip$seas.year,]
+```
+
+
+```{r}
+latlons_Pos <-  data.frame(lon=Posgnip_traj$lon, lat=Posgnip_traj$lat)
+Pos_trajplot <- rasterize(latlons_Pos, r, field=Posgnip_traj$receptor, fun=sum)
+count_Pos <- projectRaster(Pos_trajplot, crs = AustProj)
+
+latlons_Neg <-  data.frame(lon=Neggnip_traj$lon, lat=Neggnip_traj$lat)
+Neg_trajplot <- rasterize(latlons_Neg, r, field=Neggnip_traj$receptor, fun=sum)
+count_Neg <- projectRaster(Neg_trajplot, crs = AustProj)
+```
+
+```{r}
+annual_Pos <- Pos_trajplot/6
+annual_Neg <- Neg_trajplot/6
+Pos_anomaly <- annual_Pos - annual_trajplot
+Neg_anomaly <- annual_Neg - annual_trajplot
+```
+
+```{r}
+Neg_anomaly
+```
+
+
+```{r}
+colr <- colorRampPalette(brewer.pal(9, 'RdBu'))
+
+logAnomPos <- log(Pos_anomaly)
+levelplot(Pos_anomaly, margin=FALSE, main="Top 25% GNIP Anomalies",  at=c(-26,-10,-9,-8,-7,-6,-5,-4,-3,-2,-1,0,1,2,3,4,5,6,7,8,9,10,26), pretty=FALSE, col.regions=colr, colorkey=list(col=colr)) +
+  latticeExtra::layer(sp.lines(world_outline))
+```
+
+
+
+
+
+
+
+```{r}
+colr <- colorRampPalette(brewer.pal(9, 'RdBu'))
+
+logAnomPos <- log(Neg_anomaly)
+levelplot(Neg_anomaly, margin=FALSE, main="Bottom 25% GNIP Anomalies",  at=c(-26,-10,-9,-8,-7,-6,-5,-4,-3,-2,-1,0,1,2,3,4,5,6,7,8,9,10,26), pretty=FALSE, col.regions=colr, colorkey=list(col=colr)) +
+  latticeExtra::layer(sp.lines(world_outline))
+
+```
 
 
 
